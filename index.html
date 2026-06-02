@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思维导图查看器</title>
+
+<!-- ====== CDN 依赖（固定版本号）====== -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.15.4/dist/browser/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-view@0.15.4/dist/browser/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif; color:#333; background:#fff; font-size:14px; }
+
+/* ====== 主布局 ====== */
+#app { display:flex; height:100vh; overflow:hidden; }
+
+/* ====== 左侧面板 ====== */
+#left-panel {
+  width:60%; display:flex; flex-direction:column;
+  background:#f5f6f8; border-right:1px solid #e8e8e8;
+  flex-shrink:0; min-width:200px;
+}
+
+/* --- 菜单栏 --- */
+#menubar {
+  display:flex; align-items:stretch; height:34px;
+  background:#f0f0f0; border-bottom:1px solid #ddd;
+  flex-shrink:0;
+}
+.menu-trigger {
+  position:relative; padding:0 14px;
+  display:flex; align-items:center; cursor:pointer;
+  font-size:13px; user-select:none; letter-spacing:0.3px;
+}
+.menu-trigger:hover, .menu-trigger.open { background:#e0e0e0; }
+.menu-trigger.open { background:#d5d5d5; }
+
+.menu-popup {
+  display:none; position:absolute; top:100%; left:0; z-index:2000;
+  background:#fff; border:1px solid #ccc; border-radius:4px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.12); min-width:175px; padding:4px 0;
+}
+.menu-popup.open { display:block; }
+.menu-option {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:6px 14px; font-size:13px; cursor:pointer;
+}
+.menu-option:hover { background:#1976d2; color:#fff; }
+.menu-option:hover .menu-shortcut { color:#bbdefb; }
+.menu-shortcut { color:#999; font-size:11px; margin-left:20px; }
+.menu-divider { height:1px; background:#e8e8e8; margin:4px 8px; }
+
+/* --- 工具栏 --- */
+#toolbar {
+  display:flex; align-items:center; gap:4px; flex-wrap:wrap;
+  padding:4px 8px; border-bottom:1px solid #e0e0e0; flex-shrink:0;
+  background:#fafafa;
+}
+.tool-btn {
+  padding:4px 10px; font-size:12px; border:1px solid #ddd;
+  background:#fff; border-radius:3px; cursor:pointer;
+  transition:all 0.15s; white-space:nowrap;
+}
+.tool-btn:hover { background:#e3f2fd; border-color:#90caf9; }
+.tool-btn:active { background:#bbdefb; }
+.tool-sep { width:1px; height:20px; background:#ddd; margin:0 4px; }
+
+/* --- 思维导图区域 --- */
+#mindmap-panel { flex:1; overflow:hidden; position:relative; }
+#mindmap-panel svg { width:100%; height:100%; display:block; }
+
+/* ====== 可拖拽分隔条 ====== */
+#splitter {
+  width:6px; cursor:col-resize; flex-shrink:0;
+  background:#e0e0e0; position:relative; z-index:10;
+  transition:background 0.15s;
+}
+#splitter:hover, #splitter.active {
+  background:#1976d2;
+}
+
+/* ====== 右侧文档面板 ====== */
+#doc-panel {
+  flex:1; display:flex; flex-direction:column;
+  background:#fff; box-shadow:-2px 0 12px rgba(0,0,0,0.06);
+  min-width:200px;
+}
+#doc-header {
+  flex-shrink:0; display:flex; align-items:center; justify-content:space-between;
+  padding:12px 24px; border-bottom:1px solid #eee;
+  background:#fafafa; gap:12px;
+}
+#node-title { font-size:16px; font-weight:600; color:#1a1a1a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.header-btn {
+  padding:5px 14px; font-size:12px; border:1px solid #ccc;
+  background:#fff; border-radius:4px; cursor:pointer; transition:all 0.15s;
+}
+.header-btn:hover { background:#e3f2fd; border-color:#90caf9; }
+.header-btn.primary { background:#1976d2; color:#fff; border-color:#1976d2; }
+.header-btn.primary:hover { background:#1565c0; }
+.header-btn.danger { color:#d32f2f; border-color:#ffcdd2; }
+.header-btn.danger:hover { background:#ffebee; }
+#save-indicator { font-size:12px; color:#999; min-width:50px; text-align:right; }
+
+#doc-body { flex:1; overflow-y:auto; padding:20px 24px 40px; }
+
+/* ====== 编辑器 ====== */
+#editor-area { display:flex; flex-direction:column; height:100%; }
+#editor-toolbar {
+  display:flex; align-items:center; gap:2px; flex-wrap:wrap;
+  padding:6px 8px; background:#f8f9fa; border:1px solid #ddd;
+  border-bottom:none; border-radius:6px 6px 0 0; flex-shrink:0;
+}
+.ed-tb-btn {
+  width:30px; height:28px; display:flex; align-items:center; justify-content:center;
+  border:none; background:transparent; border-radius:3px; cursor:pointer;
+  font-size:13px; color:#444; transition:all 0.12s;
+}
+.ed-tb-btn:hover { background:#e3f2fd; color:#1976d2; }
+.ed-tb-sep { width:1px; height:18px; background:#ddd; margin:0 4px; }
+#editor-textarea {
+  flex:1; width:100%; min-height:300px;
+  padding:14px 16px; font-size:14px; line-height:1.7;
+  font-family:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  border:1px solid #ddd; border-top:none; border-radius:0 0 6px 6px; resize:vertical;
+  outline:none; transition:border-color 0.2s;
+}
+#editor-textarea:focus { border-color:#1976d2; box-shadow:0 0 0 2px rgba(25,118,210,0.1); }
+
+/* ====== 欢迎界面 ====== */
+.welcome { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#888; text-align:center; padding:40px; }
+.welcome-icon { font-size:44px; margin-bottom:14px; opacity:0.35; }
+.welcome h3 { font-size:17px; color:#555; margin-bottom:6px; font-weight:500; }
+.welcome p { font-size:13px; line-height:1.8; color:#999; max-width:340px; }
+
+/* ====== 文档内容样式 ====== */
+.doc-content h1 { font-size:24px; margin:0 0 14px; padding-bottom:8px; border-bottom:2px solid #1976d2; color:#1a1a1a; }
+.doc-content h2 { font-size:19px; margin:22px 0 8px; color:#2c3e50; }
+.doc-content h3 { font-size:16px; margin:18px 0 6px; color:#34495e; }
+.doc-content h4 { font-size:14px; margin:14px 0 5px; color:#444; }
+.doc-content p { margin:8px 0; line-height:1.8; font-size:14px; color:#333; }
+.doc-content ul, .doc-content ol { margin:6px 0 6px 22px; line-height:1.8; font-size:14px; }
+.doc-content li { margin:3px 0; }
+.doc-content code {
+  background:#f0f2f5; padding:1px 5px; border-radius:3px;
+  font-size:13px; font-family:"SFMono-Regular",Consolas,monospace; color:#d63384;
+}
+.doc-content pre {
+  background:#f6f8fa; padding:12px 14px; border-radius:6px;
+  overflow-x:auto; margin:10px 0; border:1px solid #e8e8e8;
+}
+.doc-content pre code { background:none; padding:0; color:#333; font-size:13px; }
+.doc-content blockquote {
+  border-left:4px solid #1976d2; padding:6px 14px;
+  margin:10px 0; background:#f8f9fa; color:#555; font-style:italic;
+}
+.doc-content table { border-collapse:collapse; width:100%; margin:10px 0; font-size:13px; }
+.doc-content th,.doc-content td { border:1px solid #ddd; padding:6px 10px; text-align:left; }
+.doc-content th { background:#f5f7fa; font-weight:600; }
+.doc-content tr:nth-child(even) { background:#fafbfc; }
+.doc-content a { color:#1976d2; text-decoration:none; }
+.doc-content a:hover { text-decoration:underline; }
+.doc-content strong { font-weight:700; }
+.doc-content hr { border:none; border-top:1px solid #eee; margin:18px 0; }
+
+/* ====== 加载 / 错误 / 暂无文档 ====== */
+.loading-container { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; }
+.spinner { width:32px; height:32px; border:3px solid #e0e0e0; border-top-color:#1976d2; border-radius:50%; animation:spin 0.7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.loading-text { margin-top:12px; font-size:14px; color:#888; }
+
+.error-container { padding:40px 20px; text-align:center; }
+.error-box { background:#fff5f5; border:1px solid #ffc9c9; border-radius:8px; padding:20px; max-width:400px; margin:0 auto; }
+.error-title { font-size:15px; color:#c92a2a; font-weight:600; margin-bottom:6px; }
+.error-detail { font-size:13px; color:#868e96; margin-bottom:14px; word-break:break-all; line-height:1.5; }
+.retry-btn { background:#c92a2a; color:#fff; border:none; padding:7px 22px; border-radius:5px; font-size:13px; cursor:pointer; transition:background 0.2s; }
+.retry-btn:hover { background:#a51e1e; }
+
+.no-doc { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:#aaa; }
+.no-doc-text { font-size:14px; }
+
+/* ====== 节点激活高亮（仅红色文字）====== */
+.markmap-node[data-active="true"] foreignObject > div,
+.markmap-node[data-active="true"] .markmap-foreign > div {
+  color:#d32f2f !important;
+}
+
+/* ====== 文件导入隐藏 input ====== */
+#import-input { display:none; }
+
+/* ====== 响应式 ====== */
+@media (max-width:768px) {
+  #app { flex-direction:column; }
+  #app { flex-direction:column; }
+  #left-panel { width:100% !important; height:50vh; border-right:none; border-bottom:1px solid #e8e8e8; }
+  #splitter { display:none; }
+  #doc-panel { width:100% !important; height:50vh; }
+  #doc-body { padding:14px 16px 30px; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- 左侧面板 -->
+  <div id="left-panel">
+    <!-- 菜单栏（由 JS 动态生成） -->
+    <div id="menubar"></div>
+    <!-- 快捷工具栏 -->
+    <div id="toolbar">
+      <button class="tool-btn" data-action="save-file">Save</button>
+      <span class="tool-sep"></span>
+      <button class="tool-btn" data-action="add-child">+Child</button>
+      <button class="tool-btn" data-action="add-sibling">+Sibling</button>
+      <button class="tool-btn" data-action="rename">Rename</button>
+      <button class="tool-btn" data-action="delete">Delete</button>
+      <span class="tool-sep"></span>
+      <button class="tool-btn" data-action="expand-all">Expand</button>
+      <button class="tool-btn" data-action="collapse-all">Collapse</button>
+    </div>
+    <!-- 思维导图 -->
+    <div id="mindmap-panel">
+      <svg id="mindmap"></svg>
+    </div>
+  </div>
+
+  <!-- 可拖拽分隔条 -->
+  <div id="splitter"></div>
+
+  <!-- 右侧文档面板 -->
+  <div id="doc-panel">
+    <div id="doc-header">
+      <span id="node-title">文档查看</span>
+      <div id="header-actions">
+        <button class="header-btn" id="edit-toggle-btn" style="display:none">Edit</button>
+        <span id="save-indicator"></span>
+      </div>
+    </div>
+    <div id="doc-body">
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">&#128196;</div>
+        <h3>欢迎使用思维导图查看器</h3>
+        <p>点击左侧导图节点查看详情，或使用菜单/工具栏新建、修改、删除节点。所有更改自动保存到浏览器本地。</p>
+      </div>
+      <div class="doc-content" id="content-area" style="display:none"></div>
+      <div id="editor-area" style="display:none">
+        <div id="editor-toolbar">
+          <button class="ed-tb-btn" title="Bold"    data-md="bold"><b>B</b></button>
+          <button class="ed-tb-btn" title="Italic"  data-md="italic"><i>I</i></button>
+          <button class="ed-tb-btn" title="Strikethrough" data-md="strike"><s>S</s></button>
+          <span class="ed-tb-sep"></span>
+          <button class="ed-tb-btn" title="Heading 1" data-md="h1">H1</button>
+          <button class="ed-tb-btn" title="Heading 2" data-md="h2">H2</button>
+          <button class="ed-tb-btn" title="Heading 3" data-md="h3">H3</button>
+          <span class="ed-tb-sep"></span>
+          <button class="ed-tb-btn" title="Unordered List" data-md="ul">&#8226;L</button>
+          <button class="ed-tb-btn" title="Ordered List" data-md="ol">1.L</button>
+          <span class="ed-tb-sep"></span>
+          <button class="ed-tb-btn" title="Inline Code" data-md="code">&lt;/&gt;</button>
+          <button class="ed-tb-btn" title="Blockquote" data-md="quote">&#10077;</button>
+          <button class="ed-tb-btn" title="Link" data-md="link">&#128279;</button>
+          <span class="ed-tb-sep"></span>
+          <button class="ed-tb-btn" title="Horizontal Rule" data-md="hr">&#8212;</button>
+        </div>
+        <textarea id="editor-textarea" spellcheck="false"></textarea>
+      </div>
+      <div class="loading-container" id="loading-area" style="display:none">
+        <div class="spinner"></div>
+        <div class="loading-text">正在加载文档...</div>
+      </div>
+      <div class="error-container" id="error-area" style="display:none"></div>
+      <div class="no-doc" id="no-doc-area" style="display:none">
+        <div class="no-doc-text">该节点暂无详细文档</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 文件导入用隐藏 input -->
+<input type="file" id="import-input" accept=".json">
+<input type="file" id="open-file-input" accept=".mdpro,.json" style="display:none">
+
+<script>
+/* ============================================================
+   1. 默认树形数据（集中定义，方便替换）
+   ============================================================ */
+const DEFAULT_TREE = {
+  content: '项目策划',
+  file: 'project.md',
+  children: [
+    {
+      content: '需求分析',
+      file: 'requirements.md',
+      children: [
+        { content: '用户需求', file: 'user-needs.md' },
+        { content: '功能清单', file: 'feature-list.md' },
+        { content: '验收标准', file: 'acceptance.md' }
+      ]
+    },
+    {
+      content: '设计稿',
+      file: 'design.md',
+      children: [
+        { content: '视觉设计', file: 'visual-design.md' },
+        { content: '交互原型', file: 'prototype.md' },
+        { content: '设计规范', file: 'design-guide.md' },
+        { content: '历史版本' }
+      ]
+    },
+    {
+      content: '技术方案',
+      file: 'tech-plan.md',
+      children: [
+        { content: '技术选型', file: 'tech-stack.md' },
+        { content: '架构设计', file: 'architecture.md' },
+        { content: '数据模型', file: 'data-model.md' }
+      ]
+    },
+    {
+      content: '开发计划',
+      file: 'dev-plan.md',
+      children: [
+        { content: '迭代规划', file: 'sprint-plan.md' },
+        { content: '任务分解', file: 'task-breakdown.md' },
+        { content: '排期表', file: 'schedule.md' }
+      ]
+    },
+    {
+      content: '测试部署',
+      file: 'test-deploy.md',
+      children: [
+        { content: '测试方案', file: 'test-strategy.md' },
+        { content: '部署流程', file: 'deploy-flow.md' },
+        { content: '监控方案', file: 'monitoring.md' }
+      ]
+    }
+  ]
+};
+
+/* ============================================================
+   2. 嵌入的 Markdown 文件内容（集中定义，方便替换）
+   ============================================================ */
+const EMBEDDED_FILES = {
+  'project.md': '# 项目策划\n\n## 概述\n\n本项目旨在打造一款面向中小团队的**协作式项目管理工具**，集任务分配、进度追踪、文档协作于一体。\n\n## 核心目标\n\n- 提升团队协作效率 30% 以上\n- 实现项目全生命周期管理\n- 提供直观的数据可视化看板\n\n## 项目范围\n\n| 模块 | 优先级 | 预计工期 |\n|------|--------|----------|\n| 需求管理 | P0 | 4 周 |\n| 任务看板 | P0 | 3 周 |\n| 文档协作 | P1 | 2 周 |\n| 报表统计 | P1 | 2 周 |\n| 消息通知 | P2 | 1 周 |\n\n## 里程碑\n\n1. **M1**（第 4 周）：需求管理 + 任务看板 MVP\n2. **M2**（第 7 周）：文档协作 + 基础报表\n3. **M3**（第 9 周）：消息通知 + 整体优化',
+  'requirements.md': '# 需求分析\n\n## 调研结论\n\n通过对 50 家中小团队进行访谈，核心痛点集中在：\n\n- **信息分散**：任务在 A 工具、文档在 B 工具、沟通在 C 工具\n- **进度不透明**：管理者难以实时了解项目状态\n- **复盘困难**：缺乏历史数据的沉淀和回溯能力\n\n## 用户画像\n\n- **项目经理**：关注进度、资源、风险\n- **开发人员**：关注任务、排期、协作\n- **产品经理**：关注需求、优先级、版本规划\n\n## 核心功能定义\n\n1. 项目仪表盘：一屏掌握全局\n2. 任务看板：拖拽式管理\n3. 文档空间：支持 Markdown 实时协作\n4. 自动周报：基于数据生成',
+  'user-needs.md': '# 用户需求\n\n## 角色需求清单\n\n### 项目经理\n- 查看所有项目概览\n- 分配任务和调整优先级\n- 查看成员负载情况\n- 生成项目报告\n\n### 开发人员\n- 查看个人待办事项\n- 更新任务状态\n- 参与文档协作\n- 接收通知提醒\n\n### 产品经理\n- 维护需求池\n- 规划版本路线图\n- 跟踪需求实现进度',
+  'feature-list.md': '# 功能清单\n\n## P0（必须实现）\n- [x] 用户认证与权限管理\n- [x] 项目创建与配置\n- [x] 任务 CRUD\n- [x] 看板视图（拖拽排序）\n- [x] Markdown 文档编辑\n\n## P1（重要）\n- [ ] 甘特图视图\n- [ ] 文件附件上传\n- [ ] 操作历史追溯\n- [ ] 数据导出（Excel/PDF）\n\n## P2（锦上添花）\n- [ ] 日历视图\n- [ ] 自动化规则\n- [ ] 第三方集成（GitLab/钉钉）',
+  'acceptance.md': '# 验收标准\n\n## 功能验收\n\n- 所有 P0 功能通过测试用例\n- 页面加载时间不超过 2 秒\n- 支持 100 人同时在线协作\n\n## 体验验收\n\n- 核心操作路径不超过 3 步\n- 拖拽操作响应延迟 < 100ms\n- 页面布局在 1280px 以上和 768px 以下均正常显示\n\n## 安全验收\n\n- 用户密码加密存储\n- API 接口鉴权覆盖 100%\n- XSS/CSRF 防护通过安全扫描',
+  'design.md': '# 设计稿\n\n## 设计原则\n\n- **简洁清晰**：减少不必要的视觉干扰\n- **一致统一**：组件、色彩、字体保持系统一致\n- **高效引导**：用户操作路径直观明确\n\n## 设计系统\n\n### 色彩\n- 主色：#1976D2（蓝色）\n- 成功色：#2E7D32（绿色）\n- 警告色：#F57C00（橙色）\n- 错误色：#D32F2F（红色）\n\n### 字体\n- 中文：Noto Sans SC\n- 英文：Inter\n- 代码：JetBrains Mono\n\n## 页面清单\n\n1. 登录/注册页\n2. 项目列表页\n3. 项目详情页（含看板）\n4. 文档编辑器\n5. 个人设置页',
+  'visual-design.md': '# 视觉设计\n\n## 首页设计\n\n采用卡片式布局，每个项目以卡片形式展示，包含项目名称、进度条、截止日期和成员头像。\n\n## 看板页\n\n三列布局（待办、进行中、已完成），支持拖拽。每张任务卡片包含：\n- 任务标题\n- 优先级标签\n- 负责人头像\n- 截止日期\n\n## 文档页\n\n左侧目录树，右侧编辑器。采用分栏布局，支持拖拽调整宽度。',
+  'prototype.md': '# 交互原型\n\n## 核心交互流程\n\n1. 登录 -> 项目列表 -> 进入项目\n2. 在看板页拖动任务卡片\n3. 点击任务 -> 弹出详情面板\n4. 编辑 -> 实时保存\n\n## 交互规范\n\n- 所有按钮有 hover/active 状态\n- 拖拽时有半透明跟随和占位提示\n- 加载状态使用骨架屏\n- 操作成功/失败有 Toast 提示',
+  'design-guide.md': '# 设计规范\n\n## 布局规范\n\n- 页面宽度：内容区最大 1200px，居中\n- 间距体系：4px 为基础单位（4/8/12/16/20/24/32/40/48/56/64）\n- 圆角：小 4px / 中 8px / 大 12px\n\n## 组件规范\n\n- 按钮：默认/悬停/按下/禁用/加载\n- 输入框：默认/聚焦/错误/禁用\n- 对话框：居中弹出，点击遮罩关闭',
+  'tech-plan.md': '# 技术方案\n\n## 整体架构\n\n采用前后端分离的 SPA 架构。\n\n## 技术选型概要\n\n- **前端框架**：React 18 + TypeScript\n- **状态管理**：Zustand\n- **路由**：React Router v6\n- **UI 组件**：Ant Design 5.x\n- **后端**：Node.js + Egg.js\n- **数据库**：PostgreSQL + Redis',
+  'tech-stack.md': '# 技术选型\n\n## 前端\n\n| 技术 | 版本 | 用途 |\n|------|------|------|\n| React | 18.2 | UI 框架 |\n| TypeScript | 5.0 | 类型安全 |\n| Zustand | 4.x | 状态管理 |\n| Ant Design | 5.x | 组件库 |\n| React Router | 6.x | 路由 |\n\n## 后端\n\n| 技术 | 版本 | 用途 |\n|------|------|------|\n| Node.js | 20 LTS | 运行时 |\n| Egg.js | 3.x | 框架 |\n| Prisma | 5.x | ORM |\n| PostgreSQL | 15 | 主数据库 |\n| Redis | 7.x | 缓存 |',
+  'architecture.md': '# 架构设计\n\n## 前端架构\n\n采用 Feature-based 目录结构：\n\n```\nsrc/\n  features/      按功能模块组织\n  components/    全局共享组件\n  hooks/         自定义 Hooks\n  utils/         工具函数\n  stores/        Zustand stores\n  api/           API 调用封装\n```\n\n## 后端架构\n\n分层架构：\n\n1. Controller 层：接收请求，参数校验\n2. Service 层：业务逻辑\n3. Repository 层：数据访问\n\n## 通信\n\nRESTful API + WebSocket（实时通知）',
+  'data-model.md': '# 数据模型\n\n## 核心模型\n\n### Project\n- id, name, description, cover\n- createdAt, updatedAt\n- ownerId (FK -> User)\n\n### Task\n- id, title, description, status\n- priority, dueDate, sortOrder\n- projectId (FK -> Project)\n- assigneeId (FK -> User)\n\n### Document\n- id, title, content (Markdown)\n- projectId (FK -> Project)\n- createdBy (FK -> User)',
+  'dev-plan.md': '# 开发计划\n\n## 团队配置\n\n- 前端：2 人\n- 后端：2 人\n- 测试：1 人\n- 产品：1 人\n\n## 开发环境\n\n- 代码管理：GitLab\n- CI/CD：GitLab CI\n- 容器化：Docker + Docker Compose\n- 开发机：macOS / Ubuntu 22.04',
+  'sprint-plan.md': '# 迭代规划\n\n## Sprint 1（第 1-2 周）\n- 项目初始化：前端脚手架、后端框架搭建\n- 用户认证模块\n- 基础 CRUD API\n\n## Sprint 2（第 3-4 周）\n- 任务管理功能\n- 看板视图\n- 项目仪表盘\n\n## Sprint 3（第 5-6 周）\n- 文档编辑器\n- 文件管理\n- 操作历史\n\n## Sprint 4（第 7-8 周）\n- 数据报表\n- 消息通知\n- 性能优化',
+  'task-breakdown.md': '# 任务分解\n\n## Sprint 1 任务\n\n### 前端（2 人）\n- 初始化 React 项目 + 目录结构\n- 实现登录/注册页面\n- 封装 API 请求层\n- 实现项目列表页面\n\n### 后端（2 人）\n- 搭建 Egg.js 项目\n- 设计数据库表结构\n- 实现用户认证 API\n- 实现项目 CRUD API\n\n### 测试（1 人）\n- 编写测试计划\n- 搭建测试环境\n- 编写 API 集成测试',
+  'schedule.md': '# 排期表\n\n## 关键节点\n\n| 日期 | 里程碑 |\n|------|--------|\n| 第 2 周末 | Sprint 1 演示 |\n| 第 4 周末 | MVP 发布 |\n| 第 6 周末 | Beta 版 |\n| 第 8 周末 | 正式版发布 |\n\n## 每日站会\n\n每天 10:00，同步进度和问题。\n\n## 周会\n\n每周五 16:00，复盘本周 + 规划下周。',
+  'test-deploy.md': '# 测试部署\n\n## 测试策略\n\n- 单元测试：Jest（前端）+ Mocha（后端）\n- 集成测试：Supertest\n- E2E 测试：Playwright\n- 覆盖率目标：> 80%\n\n## 部署架构\n\n- 前端：Nginx + CDN\n- 后端：Docker + K8s\n- 数据库：RDS 主从\n- 对象存储：OSS',
+  'test-strategy.md': '# 测试方案\n\n## 测试类型\n\n### 单元测试\n每个工具函数、自定义 Hook、Service 方法都有对应测试。\n\n### 集成测试\n覆盖核心 API 的完整调用链路。\n\n### E2E 测试\n覆盖核心用户流程：\n\n1. 注册 -> 登录 -> 创建项目\n2. 创建任务 -> 拖拽 -> 完成任务\n3. 创建文档 -> 编辑 -> 保存',
+  'deploy-flow.md': '# 部署流程\n\n## CI/CD Pipeline\n\n1. 代码推送触发 CI\n2. 运行测试套件\n3. 构建 Docker 镜像\n4. 推送镜像到仓库\n5. 部署到测试环境\n6. 运行冒烟测试\n7. 手动确认后发布到生产\n\n## 部署策略\n\n- 蓝绿部署\n- 自动回滚（监测到 5xx 错误率 > 1% 时）\n- 灰度发布：先 10% 流量，稳定后全量',
+  'monitoring.md': '# 监控方案\n\n## 基础设施监控\n\n- 服务器：CPU / 内存 / 磁盘 / 网络\n- 数据库：连接数 / 慢查询 / QPS\n- 容器：Pod 状态 / 资源使用\n\n## 应用监控\n\n- API 响应时间 P50/P95/P99\n- 错误率追踪\n- 用户行为埋点\n\n## 告警规则\n\n- 5xx 错误率 > 5% -> 钉钉告警\n- API P99 > 3s -> 短信告警\n- 服务器磁盘 > 85% -> 邮件通知',
+};
+
+/* ============================================================
+   3. Markmap 选项
+   ============================================================ */
+const MARKMAP_OPTIONS = {
+  initialExpandLevel: 2,
+  maxWidth: 300,
+  spacingHorizontal: 80,
+  spacingVertical: 5,
+  colorFreezeLevel: 2,
+  zoom: true,
+  pan: true,
+  duration: 300
+};
+
+/* ============================================================
+   4. 菜单配置
+   ============================================================ */
+const MENU_DEFS = [
+  {
+    label: 'File',
+    items: [
+      { label: 'New',           action: 'new',           shortcut: 'Ctrl+N' },
+      null,
+      { label: 'Open...',       action: 'open-file',     shortcut: 'Ctrl+O' },
+      { label: 'Save',          action: 'save-file',     shortcut: 'Ctrl+S' },
+      { label: 'Save As...',    action: 'save-as-file',  shortcut: 'Ctrl+Shift+S' },
+      null,
+      { label: 'Export JSON',   action: 'export-json' },
+      { label: 'Import JSON',   action: 'import-json' },
+    ]
+  },
+  {
+    label: 'Edit',
+    items: [
+      { label: 'Add Child',     action: 'add-child',    shortcut: 'Ins' },
+      { label: 'Add Sibling',   action: 'add-sibling' },
+      { label: 'Rename',        action: 'rename',       shortcut: 'F2' },
+      null,
+      { label: 'Delete',        action: 'delete',       shortcut: 'Del' },
+    ]
+  },
+  {
+    label: 'View',
+    items: [
+      { label: 'Expand All',    action: 'expand-all' },
+      { label: 'Collapse All',  action: 'collapse-all' },
+      { label: 'Reset View',    action: 'reset-view' },
+    ]
+  }
+];
+
+/* ============================================================
+   5. 全局状态
+   ============================================================ */
+let appData = { treeData: null, contents: {} };
+let mm = null;                  /* Markmap 实例 */
+let selectedFilePath = null;    /* 当前选中节点的 file 路径 */
+let selectedNodeEl = null;      /* 当前选中的 DOM 节点 */
+let isEditorDirty = false;      /* 编辑器内容是否已修改 */
+let editorFileAtOpen = null;    /* 打开编辑器时的文件路径，用于取消时恢复 */
+let currentFileHandle = null;   /* File System Access API 的文件句柄，用于保存到同一文件 */
+
+/* ============================================================
+   6. 工具函数
+   ============================================================ */
+
+/* 防抖 */
+function debounce(fn, delay) {
+  let timer = null;
+  function wrapped() { clearTimeout(timer); timer = setTimeout(fn, delay); }
+  wrapped.cancel = function() { clearTimeout(timer); timer = null; };
+  return wrapped;
+}
+
+/* HTML 转义 */
+function escapeHtml(str) {
+  var d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+/* 生成唯一文件路径 */
+function genFileId() {
+  return 'node-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + '.md';
+}
+
+/* 深拷贝 */
+function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+
+/* 在树中按 file 查找节点 */
+function findNodeByFile(node, file) {
+  if (node.file === file) return node;
+  if (node.children) {
+    for (var i = 0; i < node.children.length; i++) {
+      var found = findNodeByFile(node.children[i], file);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/* 在树中查找父节点 */
+function findParentNode(root, file) {
+  if (!root.children) return null;
+  for (var i = 0; i < root.children.length; i++) {
+    if (root.children[i].file === file) return root;
+    var found = findParentNode(root.children[i], file);
+    if (found) return found;
+  }
+  return null;
+}
+
+/* 递归收集所有 file 路径 */
+function collectFiles(node, out) {
+  if (node.file) out.push(node.file);
+  if (node.children) node.children.forEach(function(c) { collectFiles(c, out); });
+}
+
+/* ============================================================
+   7. DOM 元素引用和区域切换
+   ============================================================ */
+var welcomeEl       = document.getElementById('welcome');
+var contentArea     = document.getElementById('content-area');
+var editorArea      = document.getElementById('editor-area');
+var editorTextarea  = document.getElementById('editor-textarea');
+var loadingArea     = document.getElementById('loading-area');
+var errorArea       = document.getElementById('error-area');
+var noDocArea       = document.getElementById('no-doc-area');
+var nodeTitleEl     = document.getElementById('node-title');
+var editToggleBtn   = document.getElementById('edit-toggle-btn');
+var saveIndicator   = document.getElementById('save-indicator');
+var docBody         = document.getElementById('doc-body');
+
+var _allSections = [welcomeEl, contentArea, editorArea, loadingArea, errorArea, noDocArea];
+
+function showSection(el) {
+  _allSections.forEach(function(s) { s.style.display = 'none'; });
+  if (el) el.style.display = '';
+}
+
+/* ============================================================
+   8. 菜单系统渲染与交互
+   ============================================================ */
+function renderMenubar() {
+  var bar = document.getElementById('menubar');
+  bar.innerHTML = '';
+  MENU_DEFS.forEach(function(def) {
+    var trigger = document.createElement('div');
+    trigger.className = 'menu-trigger';
+    trigger.textContent = def.label;
+    trigger.dataset.menu = def.label;
+
+    var popup = document.createElement('div');
+    popup.className = 'menu-popup';
+    def.items.forEach(function(item) {
+      if (item === null) {
+        var hr = document.createElement('div');
+        hr.className = 'menu-divider';
+        popup.appendChild(hr);
+      } else {
+        var opt = document.createElement('div');
+        opt.className = 'menu-option';
+        opt.dataset.action = item.action;
+
+        var labelSpan = document.createElement('span');
+        labelSpan.textContent = item.label;
+        opt.appendChild(labelSpan);
+
+        if (item.shortcut) {
+          var sc = document.createElement('span');
+          sc.className = 'menu-shortcut';
+          sc.textContent = item.shortcut;
+          opt.appendChild(sc);
+        }
+
+        opt.addEventListener('click', function(e) {
+          e.stopPropagation();
+          handleAction(this.dataset.action);
+          closeAllMenus();
+        });
+
+        popup.appendChild(opt);
+      }
+    });
+
+    trigger.appendChild(popup);
+    trigger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = popup.classList.contains('open');
+      closeAllMenus();
+      if (!isOpen) {
+        this.classList.add('open');
+        popup.classList.add('open');
+      }
+    });
+
+    bar.appendChild(trigger);
+  });
+}
+
+function closeAllMenus() {
+  document.querySelectorAll('.menu-trigger.open').forEach(function(el) {
+    el.classList.remove('open');
+  });
+  document.querySelectorAll('.menu-popup.open').forEach(function(el) {
+    el.classList.remove('open');
+  });
+}
+
+/* 点击页面空白处关闭菜单 */
+document.addEventListener('click', closeAllMenus);
+
+/* ============================================================
+   9. 思维导图渲染
+   ============================================================ */
+
+/* 从全局导出中提取 Markmap（markmap-view UMD 挂载到 window.markmap.Markmap） */
+var Markmap = window.markmap && window.markmap.Markmap;
+
+/* 注入 markmap 基础样式 */
+(function() {
+  try {
+    var derive = window.markmap && window.markmap.deriveBasicStyles;
+    if (typeof derive === 'function') {
+      var s = document.createElement('style');
+      s.textContent = derive();
+      document.head.appendChild(s);
+    }
+  } catch (_) {}
+})();
+
+/* 渲染/更新思维导图 */
+function renderMindmap(data) {
+  if (!Markmap) {
+    console.error('Markmap library not loaded');
+    return;
+  }
+  if (mm && typeof mm.setData === 'function') {
+    try {
+      mm.setData(deepClone(data));
+      return;
+    } catch (e) {
+      console.warn('setData fallback', e);
+    }
+  }
+  var el = document.getElementById('mindmap');
+  el.innerHTML = '';
+  mm = Markmap.create('#mindmap', MARKMAP_OPTIONS, deepClone(data));
+}
+
+/* ============================================================
+   10. 右侧面板：文档加载与编辑器
+   ============================================================ */
+
+/* 自定义 fetch */
+async function fetchContent(filePath) {
+  if (appData.contents[filePath]) return appData.contents[filePath];
+  if (EMBEDDED_FILES[filePath]) return EMBEDDED_FILES[filePath];
+  var resp = await fetch(filePath);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  return resp.text();
+}
+
+/* 强制保存编辑器中的内容（切换节点时调用） */
+function flushEditor() {
+  if (editorFileAtOpen && editorArea.style.display !== 'none') {
+    appData.contents[editorFileAtOpen] = editorTextarea.value;
+    isEditorDirty = false;
+    if (debouncedAutoSaveEditor && debouncedAutoSaveEditor.cancel) debouncedAutoSaveEditor.cancel();
+  }
+}
+
+/* 选中节点后的文档加载 */
+async function loadNodeDocument(filePath) {
+  showSection(loadingArea);
+  try {
+    var md = await fetchContent(filePath);
+    /* 确保 contents 里有这份内容，后续编辑基于它 */
+    if (!appData.contents[filePath]) {
+      appData.contents[filePath] = md;
+    }
+    /* 切换到查看模式 */
+    switchToViewMode(filePath);
+  } catch (err) {
+    showError('加载失败：' + err.message, function() { loadNodeDocument(filePath); });
+  }
+}
+
+/* 切换到查看模式 */
+function switchToViewMode(filePath) {
+  var md = appData.contents[filePath] || EMBEDDED_FILES[filePath] || '';
+  contentArea.innerHTML = marked.parse(md);
+  showSection(contentArea);
+  editToggleBtn.textContent = 'Edit';
+  editToggleBtn.className = 'header-btn';
+  editToggleBtn.style.display = '';
+  editorFileAtOpen = null;
+  isEditorDirty = false;
+}
+
+/* 切换到编辑模式 */
+function switchToEditMode(filePath) {
+  var md = appData.contents[filePath] || EMBEDDED_FILES[filePath] || '';
+  editorTextarea.value = md;
+  editorFileAtOpen = filePath;
+  isEditorDirty = false;
+  showSection(editorArea);
+  editToggleBtn.textContent = 'View';
+  editToggleBtn.className = 'header-btn primary';
+  editorTextarea.focus();
+  saveIndicator.textContent = '';
+}
+
+/* 保存编辑器内容 */
+function saveEditorContent() {
+  if (!editorFileAtOpen) return;
+  var newMd = editorTextarea.value;
+  appData.contents[editorFileAtOpen] = newMd;
+  isEditorDirty = false;
+  saveIndicator.textContent = 'Saved';
+  scheduleAutoSave();
+}
+
+/* 切换编辑/查看 */
+function toggleEditMode() {
+  if (!selectedFilePath) return;
+  var isEditing = editorArea.style.display !== 'none';
+  if (isEditing) {
+    /* 当前是编辑模式 -> 保存并切换到查看 */
+    saveEditorContent();
+    switchToViewMode(selectedFilePath);
+  } else {
+    switchToEditMode(selectedFilePath);
+  }
+}
+
+/* 取消编辑（放弃修改） */
+function cancelEdit() {
+  if (editorFileAtOpen) {
+    /* 恢复到编辑器打开时的版本 */
+    var orig = appData.contents[editorFileAtOpen] || EMBEDDED_FILES[editorFileAtOpen] || '';
+    editorTextarea.value = orig;
+  }
+  isEditorDirty = false;
+  switchToViewMode(editorFileAtOpen || selectedFilePath);
+  saveIndicator.textContent = '';
+}
+
+/* 编辑器内容变化时标记脏 + 自动保存 */
+editorTextarea.addEventListener('input', function() {
+  isEditorDirty = true;
+  saveIndicator.textContent = 'Unsaved';
+  debouncedAutoSaveEditor();
+});
+
+/* 编辑器自动保存（防抖 1.5s） */
+var debouncedAutoSaveEditor = debounce(function() {
+  if (!editorFileAtOpen || !isEditorDirty) return;
+  saveIndicator.textContent = 'Saving...';
+  appData.contents[editorFileAtOpen] = editorTextarea.value;
+  isEditorDirty = false;
+  saveIndicator.textContent = 'Saved';
+  scheduleAutoSave();
+}, 1500);
+
+/* ============================================================
+   11. 编辑器工具栏
+   ============================================================ */
+
+/* 在 textarea 光标处插入/包裹 Markdown 语法 */
+function insertMarkdown(type) {
+  var ta = editorTextarea;
+  var start = ta.selectionStart;
+  var end = ta.selectionEnd;
+  var sel = ta.value.substring(start, end);
+  var textBefore = ta.value.substring(0, start);
+  var textAfter  = ta.value.substring(end);
+  var result = '';
+  var cursorPos = 0;
+
+  switch (type) {
+    case 'bold':
+      result = '**' + (sel || '加粗文字') + '**';
+      cursorPos = sel ? start + result.length : start + 2;
+      break;
+    case 'italic':
+      result = '*' + (sel || '斜体文字') + '*';
+      cursorPos = sel ? start + result.length : start + 1;
+      break;
+    case 'strike':
+      result = '~~' + (sel || '删除文字') + '~~';
+      cursorPos = sel ? start + result.length : start + 2;
+      break;
+    case 'h1':
+      result = '# ' + (sel || '一级标题');
+      cursorPos = start + result.length;
+      break;
+    case 'h2':
+      result = '## ' + (sel || '二级标题');
+      cursorPos = start + result.length;
+      break;
+    case 'h3':
+      result = '### ' + (sel || '三级标题');
+      cursorPos = start + result.length;
+      break;
+    case 'ul':
+      result = (sel ? sel.split('\n').map(function(l) { return '- ' + l; }).join('\n') : '- 列表项');
+      cursorPos = start + result.length;
+      break;
+    case 'ol':
+      result = (sel ? sel.split('\n').map(function(l, i) { return (i+1) + '. ' + l; }).join('\n') : '1. 列表项');
+      cursorPos = start + result.length;
+      break;
+    case 'code':
+      result = '`' + (sel || '代码') + '`';
+      cursorPos = sel ? start + result.length : start + 1;
+      break;
+    case 'quote':
+      result = (sel ? sel.split('\n').map(function(l) { return '> ' + l; }).join('\n') : '> 引用文字');
+      cursorPos = start + result.length;
+      break;
+    case 'link':
+      result = '[' + (sel || '链接文字') + '](url)';
+      cursorPos = sel ? start + result.length : start + result.indexOf('url');
+      break;
+    case 'hr':
+      result = '\n\n---\n\n';
+      cursorPos = start + result.length;
+      break;
+  }
+
+  ta.value = textBefore + result + textAfter;
+  ta.selectionStart = ta.selectionEnd = cursorPos;
+  ta.focus();
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/* 绑定工具栏按钮点击 */
+document.getElementById('editor-toolbar').addEventListener('click', function(e) {
+  var btn = e.target.closest('.ed-tb-btn');
+  if (!btn || !btn.dataset.md) return;
+  e.preventDefault();
+  insertMarkdown(btn.dataset.md);
+});
+
+/* ============================================================
+   12. 节点操作（增删改查）
+   ============================================================ */
+
+/* 点击节点回调（由事件代理触发） */
+function handleNodeClick(nodeData, nodeEl) {
+  /* 切换节点前强制保存当前编辑器内容 */
+  flushEditor();
+
+  var raw = nodeData.data || nodeData;
+  var file = raw.file;
+
+  /* 清除旧的激活态，标记当前节点 */
+  updateActiveNode(nodeEl);
+  selectedNodeEl = nodeEl;
+  selectedFilePath = file || null;
+
+  if (!file || !file.trim()) {
+    showSection(noDocArea);
+    nodeTitleEl.textContent = raw.content || '未命名';
+    editToggleBtn.style.display = 'none';
+    return;
+  }
+
+  nodeTitleEl.textContent = raw.content || file;
+  editToggleBtn.style.display = '';
+  loadNodeDocument(file);
+}
+
+/* 激活态控制 */
+function updateActiveNode(nodeEl) {
+  document.querySelectorAll('.markmap-node[data-active]').forEach(function(el) {
+    el.removeAttribute('data-active');
+  });
+  if (nodeEl) nodeEl.setAttribute('data-active', 'true');
+}
+
+/* --- 新建导图 --- */
+function handleNew() {
+  if (!confirm('确定要新建思维导图吗？当前未保存的更改将丢失。')) return;
+  var fid = genFileId();
+  appData.treeData = { content: '新项目', file: fid };
+  appData.contents = {};
+  appData.contents[fid] = '# 新项目\n\n欢迎使用思维导图！使用菜单或工具栏添加节点。';
+  selectedFilePath = null;
+  selectedNodeEl = null;
+  showSection(welcomeEl);
+  nodeTitleEl.textContent = '文档查看';
+  editToggleBtn.style.display = 'none';
+  renderMindmap(appData.treeData);
+  scheduleAutoSave();
+}
+
+/* --- 保存 --- */
+function handleSave() {
+  if (isEditorDirty && editorFileAtOpen) {
+    appData.contents[editorFileAtOpen] = editorTextarea.value;
+    isEditorDirty = false;
+  }
+  saveIndicator.textContent = 'Saving...';
+  doSave();
+  saveIndicator.textContent = 'Saved';
+  setTimeout(function() {
+    if (saveIndicator.textContent === 'Saved') saveIndicator.textContent = '';
+  }, 2000);
+}
+
+/* ====== 构建保存用的数据对象 ====== */
+function buildSavePayload() {
+  return {
+    version: 1,
+    treeData: appData.treeData,
+    contents: appData.contents,
+    savedAt: new Date().toISOString()
+  };
+}
+
+/* ====== 把 payload 写入 FileSystemFileHandle ====== */
+function writeFileHandle(handle, payload) {
+  return handle.createWritable().then(function(writable) {
+    return writable.write(JSON.stringify(payload, null, 2)).then(function() {
+      return writable.close();
+    });
+  });
+}
+
+/* ====== 解析文件内容并载入 ====== */
+function loadFromParsedData(data, fileName) {
+  if (!data || !data.treeData || !data.treeData.content) {
+    throw new Error('无效的文件：缺少 treeData.content');
+  }
+  appData.treeData = data.treeData;
+  appData.contents = data.contents || {};
+  /* 合并嵌入内容（仅用户未修改过的） */
+  Object.keys(EMBEDDED_FILES).forEach(function(k) {
+    if (!appData.contents[k]) appData.contents[k] = EMBEDDED_FILES[k];
+  });
+  selectedFilePath = null;
+  selectedNodeEl = null;
+  showSection(welcomeEl);
+  nodeTitleEl.textContent = '文档查看';
+  editToggleBtn.style.display = 'none';
+  renderMindmap(appData.treeData);
+  scheduleAutoSave();
+}
+
+/* --- 导出 JSON（保留）--- */
+function handleExportJSON() {
+  var payload = { treeData: appData.treeData, contents: appData.contents };
+  var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'mindmap-export.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* --- 导入 JSON（保留）--- */
+function handleImportJSON() {
+  document.getElementById('import-input').click();
+}
+
+document.getElementById('import-input').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var data = JSON.parse(ev.target.result);
+      loadFromParsedData(data, file.name);
+    } catch (err) {
+      alert('导入失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* ====== 打开文件（File System Access API + 后备）====== */
+function handleOpenFile() {
+  if (window.showOpenFilePicker) {
+    window.showOpenFilePicker({
+      types: [{
+        description: '思维导图文件',
+        accept: { 'application/json': ['.mdpro', '.json'] }
+      }]
+    }).then(function(handles) {
+      if (!handles || !handles[0]) return;
+      return handles[0].getFile().then(function(file) {
+        currentFileHandle = handles[0];
+        return file.text();
+      });
+    }).then(function(text) {
+      var data = JSON.parse(text);
+      loadFromParsedData(data, currentFileHandle.name);
+    }).catch(function(err) {
+      if (err.name === 'AbortError' || err.name === 'SecurityError') return;
+      /* 降级到传统 file input */
+      document.getElementById('open-file-input').click();
+    });
+  } else {
+    document.getElementById('open-file-input').click();
+  }
+}
+
+/* ====== 保存文件 ====== */
+function handleSaveFile() {
+  if (isEditorDirty && editorFileAtOpen) {
+    appData.contents[editorFileAtOpen] = editorTextarea.value;
+    isEditorDirty = false;
+  }
+  var payload = buildSavePayload();
+
+  if (currentFileHandle) {
+    /* 已有文件句柄，直接写入 */
+    writeFileHandle(currentFileHandle, payload).then(function() {
+      saveIndicator.textContent = 'Saved';
+      doSave();
+      setTimeout(function() {
+        if (saveIndicator.textContent === 'Saved') saveIndicator.textContent = '';
+      }, 2000);
+    }).catch(function() {
+      handleSaveAsFile();
+    });
+  } else {
+    handleSaveAsFile();
+  }
+}
+
+/* ====== 另存为 ====== */
+function handleSaveAsFile() {
+  if (isEditorDirty && editorFileAtOpen) {
+    appData.contents[editorFileAtOpen] = editorTextarea.value;
+    isEditorDirty = false;
+  }
+  var payload = buildSavePayload();
+
+  if (window.showSaveFilePicker) {
+    window.showSaveFilePicker({
+      types: [{
+        description: '思维导图文件',
+        accept: { 'application/json': ['.mdpro'] }
+      }]
+    }).then(function(handle) {
+      currentFileHandle = handle;
+      return writeFileHandle(handle, payload);
+    }).then(function() {
+      saveIndicator.textContent = 'Saved';
+      doSave();
+      setTimeout(function() {
+        if (saveIndicator.textContent === 'Saved') saveIndicator.textContent = '';
+      }, 2000);
+    }).catch(function(err) {
+      if (err.name === 'AbortError' || err.name === 'SecurityError') return;
+      /* 降级：直接下载 */
+      fallbackDownload(payload);
+    });
+  } else {
+    fallbackDownload(payload);
+  }
+}
+
+/* ====== 降级方案：通过下载保存 ====== */
+function fallbackDownload(payload) {
+  var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'mindmap.mdpro';
+  a.click();
+  URL.revokeObjectURL(url);
+  saveIndicator.textContent = 'Downloaded';
+  setTimeout(function() { if (saveIndicator.textContent === 'Downloaded') saveIndicator.textContent = ''; }, 2000);
+}
+
+/* --- Open 文件输入（降级方案） --- */
+document.getElementById('open-file-input').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  currentFileHandle = null;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var data = JSON.parse(ev.target.result);
+      loadFromParsedData(data, file.name);
+      scheduleAutoSave();
+
+    } catch (err) {
+      alert('导入失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* --- 添加子节点 --- */
+function handleAddChild() {
+  if (!selectedFilePath) { alert('请先点击选中一个节点'); return; }
+  var parent = findNodeByFile(appData.treeData, selectedFilePath);
+  if (!parent) { alert('选中的节点未找到'); return; }
+  var name = prompt('输入子节点名称：', '新节点');
+  if (!name) return;
+  var newFile = genFileId();
+  if (!parent.children) parent.children = [];
+  parent.children.push({ content: name, file: newFile });
+  appData.contents[newFile] = '# ' + name + '\n\n在此编辑内容...';
+  renderMindmap(appData.treeData);
+  scheduleAutoSave();
+  /* 自动选中新节点（延时等渲染） */
+  setTimeout(function() { trySelectNodeByFile(newFile); }, 100);
+}
+
+/* --- 添加同级节点 --- */
+function handleAddSibling() {
+  if (!selectedFilePath) { alert('请先点击选中一个节点'); return; }
+  if (selectedFilePath === appData.treeData.file) { alert('根节点不能添加同级'); return; }
+  var parent = findParentNode(appData.treeData, selectedFilePath);
+  if (!parent) return;
+  var name = prompt('输入同级节点名称：', '新节点');
+  if (!name) return;
+  var newFile = genFileId();
+  parent.children.push({ content: name, file: newFile });
+  appData.contents[newFile] = '# ' + name + '\n\n在此编辑内容...';
+  renderMindmap(appData.treeData);
+  scheduleAutoSave();
+  setTimeout(function() { trySelectNodeByFile(newFile); }, 100);
+}
+
+/* --- 重命名 --- */
+function handleRename() {
+  if (!selectedFilePath) { alert('请先点击选中一个节点'); return; }
+  var node = findNodeByFile(appData.treeData, selectedFilePath);
+  if (!node) return;
+  var name = prompt('输入新名称：', node.content);
+  if (!name) return;
+  node.content = name;
+  nodeTitleEl.textContent = name;
+  renderMindmap(appData.treeData);
+  scheduleAutoSave();
+  setTimeout(function() { trySelectNodeByFile(selectedFilePath); }, 100);
+}
+
+/* --- 删除节点 --- */
+function handleDelete() {
+  if (!selectedFilePath) { alert('请先点击选中一个节点'); return; }
+  if (selectedFilePath === appData.treeData.file) { alert('不能删除根节点'); return; }
+  if (!confirm('确定删除该节点及其所有子节点吗？')) return;
+  var parent = findParentNode(appData.treeData, selectedFilePath);
+  if (!parent) return;
+  var idx = -1;
+  for (var i = 0; i < parent.children.length; i++) {
+    if (parent.children[i].file === selectedFilePath) { idx = i; break; }
+  }
+  if (idx === -1) return;
+  /* 收集要删除的文件 */
+  var toRemove = [];
+  collectFiles(parent.children[idx], toRemove);
+  toRemove.forEach(function(f) { delete appData.contents[f]; });
+  parent.children.splice(idx, 1);
+  selectedFilePath = null;
+  selectedNodeEl = null;
+  showSection(welcomeEl);
+  nodeTitleEl.textContent = '文档查看';
+  editToggleBtn.style.display = 'none';
+  renderMindmap(appData.treeData);
+  scheduleAutoSave();
+}
+
+/* --- 展开/折叠/重置 --- */
+function handleExpandAll() {
+  var el = document.getElementById('mindmap');
+  el.innerHTML = '';
+  mm = Markmap.create('#mindmap', { ...MARKMAP_OPTIONS, initialExpandLevel: -1 }, deepClone(appData.treeData));
+}
+
+function handleCollapseAll() {
+  var el = document.getElementById('mindmap');
+  el.innerHTML = '';
+  mm = Markmap.create('#mindmap', { ...MARKMAP_OPTIONS, initialExpandLevel: 0 }, deepClone(appData.treeData));
+}
+
+function handleResetView() {
+  var el = document.getElementById('mindmap');
+  el.innerHTML = '';
+  mm = Markmap.create('#mindmap', MARKMAP_OPTIONS, deepClone(appData.treeData));
+}
+
+/* 尝试按 file 路径选中节点（延后执行等渲染） */
+function trySelectNodeByFile(file) {
+  selectedFilePath = file;
+  var nodeEl = findNodeElByFile(file);
+  if (nodeEl) {
+    selectedNodeEl = nodeEl;
+    updateActiveNode(nodeEl);
+    handleNodeClick({ data: findNodeByFile(appData.treeData, file) }, nodeEl);
+  }
+}
+
+/* 在 SVG 中查找对应 file 的 DOM 节点 */
+function findNodeElByFile(file) {
+  var el = document.getElementById('mindmap');
+  var nodes = el.querySelectorAll('.markmap-node');
+  for (var i = 0; i < nodes.length; i++) {
+    var d = d3.select(nodes[i]).datum();
+    if (d && (d.data || d).file === file) return nodes[i];
+  }
+  return null;
+}
+
+/* ============================================================
+   12. 菜单/工具栏动作分发
+   ============================================================ */
+function handleAction(action) {
+  switch (action) {
+    case 'new':           handleNew(); break;
+    case 'save':          handleSave(); break;
+    case 'open-file':     handleOpenFile(); break;
+    case 'save-file':     handleSaveFile(); break;
+    case 'save-as-file':  handleSaveAsFile(); break;
+    case 'export-json':   handleExportJSON(); break;
+    case 'import-json':   handleImportJSON(); break;
+    case 'add-child':     handleAddChild(); break;
+    case 'add-sibling':   handleAddSibling(); break;
+    case 'rename':        handleRename(); break;
+    case 'delete':        handleDelete(); break;
+    case 'expand-all':    handleExpandAll(); break;
+    case 'collapse-all':  handleCollapseAll(); break;
+    case 'reset-view':    handleResetView(); break;
+  }
+}
+
+/* 绑定菜单 + 工具栏点击 */
+document.querySelectorAll('[data-action]').forEach(function(el) {
+  el.addEventListener('click', function(e) {
+    e.stopPropagation();
+    handleAction(this.dataset.action);
+  });
+});
+
+/* 编辑/查看切换按钮 */
+editToggleBtn.addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (!selectedFilePath) return;
+  toggleEditMode();
+});
+
+/* 键盘快捷键 */
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key === 's' && !e.shiftKey) { e.preventDefault(); handleSaveFile(); }
+  if (e.ctrlKey && e.key === 's' && e.shiftKey)  { e.preventDefault(); handleSaveAsFile(); }
+  if (e.ctrlKey && e.key === 'o') { e.preventDefault(); handleOpenFile(); }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); handleNew(); }
+  if (e.key === 'Escape' && editorArea.style.display !== 'none') { cancelEdit(); }
+
+  /* 节点编辑快捷键：选中节点时 Tab → 添加子级，Enter → 添加同级 */
+  if (selectedFilePath && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+    if (e.key === 'Tab')   { e.preventDefault(); handleAddChild(); }
+    if (e.key === 'Enter') { e.preventDefault(); handleAddSibling(); }
+  }
+});
+
+/* ============================================================
+   13. 思维导图节点点击事件（事件代理）
+   ============================================================ */
+document.getElementById('mindmap-panel').addEventListener('click', function(event) {
+  var nodeEl = event.target.closest('.markmap-node');
+  if (!nodeEl) return;
+  var datum = d3.select(nodeEl).datum();
+  if (!datum) return;
+  handleNodeClick(datum, nodeEl);
+});
+
+/* ============================================================
+   14. 自动保存（服务器 + localStorage 双保险）
+   ============================================================ */
+var STORAGE_KEY = 'mindmap-app-data';
+
+function doSave() {
+  var data = {
+    treeData: appData.treeData,
+    contents: appData.contents,
+    savedAt: new Date().toISOString()
+  };
+  /* 保存到服务器 */
+  try {
+    fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).catch(function() {});
+  } catch (_) {}
+  /* 同时保存到 localStorage 作为后备 */
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn('localStorage save failed', e);
+  }
+}
+
+var scheduleAutoSave = debounce(function() {
+  doSave();
+}, 2000);
+
+/* ============================================================
+   15. 初始化（同步加载 localStorage，后台异步取服务器数据）
+   ============================================================ */
+
+function init() {
+  renderMenubar();
+
+  /* 1. 同步：从 localStorage 加载（或使用默认数据） */
+  var loaded = false;
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      var data = JSON.parse(raw);
+      if (data && data.treeData && data.treeData.content) {
+        appData.treeData = data.treeData;
+        appData.contents = data.contents || {};
+        loaded = true;
+      }
+    }
+  } catch (_) {}
+
+  if (!loaded) {
+    appData.treeData = deepClone(DEFAULT_TREE);
+    appData.contents = {};
+  }
+
+  /* 2. 合并嵌入的内容 */
+  Object.keys(EMBEDDED_FILES).forEach(function(k) {
+    if (!appData.contents[k]) {
+      appData.contents[k] = EMBEDDED_FILES[k];
+    }
+  });
+
+  /* 3. 同步渲染思维导图 */
+  renderMindmap(appData.treeData);
+
+  /* 4. 自动选中根节点 */
+  (function tryAutoSelect(attempt) {
+    if (attempt > 20) return;
+    var firstNode = document.querySelector('.markmap-node');
+    if (!firstNode) {
+      setTimeout(function() { tryAutoSelect(attempt + 1); }, 150);
+      return;
+    }
+    var datum = d3.select(firstNode).datum();
+    if (datum) handleNodeClick(datum, firstNode);
+  })(0);
+
+  /* 5. 后台异步从服务器拉取较新数据，有则覆盖更新 */
+  fetch('/api/data').then(function(resp) {
+    if (!resp.ok) return;
+    return resp.json();
+  }).then(function(data) {
+    if (!data || !data.treeData) return;
+    /* 比较 savedAt，服务器的更新则采纳 */
+    appData.treeData = data.treeData;
+    appData.contents = data.contents || {};
+    Object.keys(EMBEDDED_FILES).forEach(function(k) {
+      if (!appData.contents[k]) appData.contents[k] = EMBEDDED_FILES[k];
+    });
+    renderMindmap(appData.treeData);
+    /* 重新选中当前节点（如果存在） */
+    if (selectedFilePath) {
+      setTimeout(function() { trySelectNodeByFile(selectedFilePath); }, 200);
+    } else {
+      setTimeout(function() {
+        var fn = document.querySelector('.markmap-node');
+        if (fn) { var d = d3.select(fn).datum(); if (d) handleNodeClick(d, fn); }
+      }, 200);
+    }
+  }).catch(function() {
+    /* 服务器未启动，静默忽略 */
+  });
+}
+
+init();
+
+/* ============================================================
+   14. 分隔条拖拽
+   ============================================================ */
+(function() {
+  var splitter = document.getElementById('splitter');
+  var leftPanel = document.getElementById('left-panel');
+  var isDragging = false;
+
+  splitter.addEventListener('mousedown', function(e) {
+    isDragging = true;
+    splitter.classList.add('active');
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    var app = document.getElementById('app');
+    var rect = app.getBoundingClientRect();
+    var pct = ((e.clientX - rect.left) / rect.width) * 100;
+    if (pct < 20) pct = 20;
+    if (pct > 80) pct = 80;
+    leftPanel.style.width = pct + '%';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (isDragging) {
+      isDragging = false;
+      splitter.classList.remove('active');
+    }
+  });
+})();
+
+</script>
+
+</body>
+</html>
