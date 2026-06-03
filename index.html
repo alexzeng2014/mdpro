@@ -12,192 +12,316 @@
 <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
 
 <style>
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif; color:#333; background:#fff; font-size:14px; }
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f6f8;
+  --bg-tertiary: #f0f0f0;
+  --text-primary: #333333;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --text-light: #999999;
+  --border: #e0e0e0;
+  --border-light: #e8e8e8;
+  --accent: #1976d2;
+  --accent-hover: #1565c0;
+  --accent-light: #e3f2fd;
+  --accent-border: #90caf9;
+  --danger: #d32f2f;
+  --danger-bg: #fff5f5;
+  --danger-border: #ffc9c9;
+  --danger-hover: #ffebee;
+  --success: #2e7d32;
+  --warning: #f57c00;
+  --shadow: rgba(0,0,0,0.12);
+  --code-bg: #f0f2f5;
+  --code-color: #d63384;
+  --pre-bg: #f6f8fa;
+  --pre-border: #e8e8e8;
+  --panel-shadow: rgba(0,0,0,0.06);
+  --popup-bg: #ffffff;
+  --popup-border: #cccccc;
+  --editable-bg: #ffffff;
+}
+body.dark {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-muted: #8899aa;
+  --text-light: #666666;
+  --border: #2a2a3e;
+  --border-light: #333348;
+  --accent: #64b5f6;
+  --accent-hover: #42a5f5;
+  --accent-light: #1a237e;
+  --accent-border: #1565c0;
+  --danger: #ef5350;
+  --danger-bg: #2a1111;
+  --danger-border: #5a2020;
+  --danger-hover: #331122;
+  --success: #66bb6a;
+  --warning: #ffa726;
+  --shadow: rgba(0,0,0,0.4);
+  --code-bg: #2d2d3d;
+  --code-color: #f48fb1;
+  --pre-bg: #1e1e2e;
+  --pre-border: #333348;
+  --panel-shadow: rgba(0,0,0,0.3);
+  --popup-bg: #1a1a2e;
+  --popup-border: #444458;
+  --editable-bg: #2a2a3e;
+}
+body.dark .welcome-icon { opacity:0.5; }
+body.dark .markmap-node .markmap-foreign > div[contenteditable]:focus { background:var(--editable-bg); }
+body.dark .doc-content code { background:var(--code-bg); color:var(--code-color); }
+body.dark .doc-content pre { background:var(--pre-bg); border-color:var(--pre-border); }
+body.dark .doc-content pre code { color:var(--text-primary); }
+body.dark .doc-content blockquote { background:var(--bg-secondary); color:var(--text-secondary); }
+body.dark .doc-content th { background:var(--bg-tertiary); }
+body.dark .doc-content tr:nth-child(even) { background:var(--bg-secondary); }
+body.dark .doc-content hr { border-top-color:var(--border); }
+body.dark .error-box { background:var(--danger-bg); border-color:var(--danger-border); }
+body.dark .retry-btn { background:var(--danger); }
+body.dark .retry-btn:hover { background:#c62828; }
+body.dark .markmap-node[data-active="true"] foreignObject > div,
+body.dark .markmap-node[data-active="true"] .markmap-foreign > div { color:#ef5350 !important; }
+body.dark .doc-content blockquote { border-left-color:var(--accent); }
+body.dark .doc-content a { color:var(--accent); }
+body.dark #search-input { background:var(--bg-tertiary); color:var(--text-primary); border-color:var(--border); }
+body.dark .drag-indicator { background:var(--accent); }
+body.dark .markmap-node.drag-over > foreignObject { outline:2px solid var(--accent); outline-offset:-2px; border-radius:4px; }
 
-/* ====== 主布局 ====== */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif; color:var(--text-primary); background:var(--bg-primary); font-size:14px; }
+
 #app { display:flex; height:100vh; overflow:hidden; }
 
-/* ====== 左侧面板 ====== */
 #left-panel {
   width:60%; display:flex; flex-direction:column;
-  background:#f5f6f8; border-right:1px solid #e8e8e8;
+  background:var(--bg-secondary); border-right:1px solid var(--border-light);
   flex-shrink:0; min-width:200px;
 }
 
-/* --- 菜单栏 --- */
 #menubar {
   display:flex; align-items:stretch; height:34px;
-  background:#f0f0f0; border-bottom:1px solid #ddd;
+  background:var(--bg-tertiary); border-bottom:1px solid var(--border);
   flex-shrink:0;
 }
 .menu-trigger {
   position:relative; padding:0 14px;
   display:flex; align-items:center; cursor:pointer;
   font-size:13px; user-select:none; letter-spacing:0.3px;
+  color:var(--text-primary);
 }
-.menu-trigger:hover, .menu-trigger.open { background:#e0e0e0; }
-.menu-trigger.open { background:#d5d5d5; }
-
+.menu-trigger:hover, .menu-trigger.open { background:var(--border); }
+.menu-trigger.open { background:var(--text-muted); }
 .menu-popup {
   display:none; position:absolute; top:100%; left:0; z-index:2000;
-  background:#fff; border:1px solid #ccc; border-radius:4px;
-  box-shadow:0 2px 12px rgba(0,0,0,0.12); min-width:175px; padding:4px 0;
+  background:var(--popup-bg); border:1px solid var(--popup-border); border-radius:4px;
+  box-shadow:0 2px 12px var(--shadow); min-width:175px; padding:4px 0;
 }
 .menu-popup.open { display:block; }
 .menu-option {
   display:flex; justify-content:space-between; align-items:center;
-  padding:6px 14px; font-size:13px; cursor:pointer;
+  padding:6px 14px; font-size:13px; cursor:pointer; color:var(--text-primary);
 }
-.menu-option:hover { background:#1976d2; color:#fff; }
+.menu-option:hover { background:var(--accent); color:#fff; }
 .menu-option:hover .menu-shortcut { color:#bbdefb; }
-.menu-shortcut { color:#999; font-size:11px; margin-left:20px; }
-.menu-divider { height:1px; background:#e8e8e8; margin:4px 8px; }
+.menu-shortcut { color:var(--text-light); font-size:11px; margin-left:20px; }
+.menu-divider { height:1px; background:var(--border-light); margin:4px 8px; }
 
-/* --- 工具栏 --- */
 #toolbar {
   display:flex; align-items:center; gap:4px; flex-wrap:wrap;
-  padding:4px 8px; border-bottom:1px solid #e0e0e0; flex-shrink:0;
-  background:#fafafa;
+  padding:4px 8px; border-bottom:1px solid var(--border); flex-shrink:0;
+  background:var(--bg-tertiary);
 }
 .tool-btn {
-  padding:4px 10px; font-size:12px; border:1px solid #ddd;
-  background:#fff; border-radius:3px; cursor:pointer;
-  transition:all 0.15s; white-space:nowrap;
+  padding:4px 10px; font-size:12px; border:1px solid var(--border);
+  background:var(--bg-primary); border-radius:3px; cursor:pointer;
+  transition:all 0.15s; white-space:nowrap; color:var(--text-primary);
 }
-.tool-btn:hover { background:#e3f2fd; border-color:#90caf9; }
-.tool-btn:active { background:#bbdefb; }
-.tool-sep { width:1px; height:20px; background:#ddd; margin:0 4px; }
+.tool-btn:hover { background:var(--accent-light); border-color:var(--accent-border); }
+.tool-btn:active { background:var(--accent-border); }
+.tool-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.tool-btn.active:hover { background:var(--accent-hover); }
+.tool-sep { width:1px; height:20px; background:var(--border); margin:0 4px; }
+
+#search-bar {
+  display:flex; align-items:center; gap:4px;
+  padding:2px 4px; border-bottom:1px solid var(--border); flex-shrink:0;
+  background:var(--bg-tertiary);
+}
+#search-bar.hidden { display:none; }
+#search-input {
+  flex:1; padding:3px 8px; font-size:12px; border:1px solid var(--border);
+  border-radius:3px; outline:none; background:var(--bg-primary);
+  color:var(--text-primary); min-width:0;
+}
+#search-input:focus { border-color:var(--accent); }
+#search-count { font-size:11px; color:var(--text-light); white-space:nowrap; padding:0 4px; }
+#search-close {
+  padding:2px 6px; font-size:11px; border:none; background:transparent;
+  cursor:pointer; color:var(--text-light); border-radius:3px;
+}
+#search-close:hover { background:var(--border); color:var(--text-primary); }
+.markmap-node.search-match > foreignObject { outline:2px dashed var(--accent); outline-offset:-2px; border-radius:4px; }
+.markmap-node.search-current > foreignObject { outline:3px solid var(--accent); outline-offset:-3px; border-radius:4px; }
 
 /* --- 思维导图区域 --- */
 #mindmap-panel { flex:1; overflow:hidden; position:relative; }
 #mindmap-panel svg { width:100%; height:100%; display:block; }
+#ctx-trigger {
+  position:fixed; z-index:5000; display:none;
+  width:28px; height:28px; border-radius:50%;
+  background:var(--accent); color:#fff; border:2px solid #fff;
+  font-size:16px; line-height:28px; text-align:center;
+  cursor:pointer; box-shadow:0 2px 8px var(--shadow);
+  user-select:none;
+}
+#ctx-trigger:hover { transform:scale(1.15); }
+#ctx-trigger.show { display:block !important; }
+#context-menu {
+  position:fixed; z-index:10000; min-width:160px;
+  background:var(--popup-bg); border:1px solid var(--popup-border);
+  border-radius:6px; box-shadow:0 4px 20px var(--shadow);
+  padding:4px 0; display:none;
+}
+#context-menu .ctx-item {
+  padding:7px 16px; font-size:13px; cursor:pointer;
+  display:flex; align-items:center; gap:8px;
+  color:var(--text-primary); transition:background 0.1s;
+}
+#context-menu .ctx-item:hover { background:var(--accent); color:#fff; }
+#context-menu .ctx-item.danger:hover { background:var(--danger); color:#fff; }
+#context-menu .ctx-divider { height:1px; background:var(--border); margin:4px 8px; }
+#context-menu .ctx-item .arrow { margin-left:auto; font-size:10px; opacity:0.5; }
+#context-menu .ctx-sub {
+  display:none; position:absolute; left:100%; top:-4px;
+  min-width:180px; max-height:300px; overflow-y:auto;
+  background:var(--popup-bg); border:1px solid var(--popup-border);
+  border-radius:6px; box-shadow:0 4px 20px var(--shadow);
+  padding:4px 0;
+}
+#context-menu .ctx-item.has-sub:hover > .ctx-sub { display:block; }
 
-/* ====== 可拖拽分隔条 ====== */
 #splitter {
   width:6px; cursor:col-resize; flex-shrink:0;
-  background:#e0e0e0; position:relative; z-index:10;
+  background:var(--border); position:relative; z-index:10;
   transition:background 0.15s;
 }
-#splitter:hover, #splitter.active {
-  background:#1976d2;
-}
+#splitter:hover, #splitter.active { background:var(--accent); }
 
-/* ====== 右侧文档面板 ====== */
 #doc-panel {
   flex:1; display:flex; flex-direction:column;
-  background:#fff; box-shadow:-2px 0 12px rgba(0,0,0,0.06);
+  background:var(--bg-primary); box-shadow:-2px 0 12px var(--panel-shadow);
   min-width:200px;
 }
 #doc-header {
   flex-shrink:0; display:flex; align-items:center; justify-content:space-between;
-  padding:12px 24px; border-bottom:1px solid #eee;
-  background:#fafafa; gap:12px;
+  padding:12px 24px; border-bottom:1px solid var(--border-light);
+  background:var(--bg-secondary); gap:12px;
 }
-#node-title { font-size:16px; font-weight:600; color:#1a1a1a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#node-title { font-size:16px; font-weight:600; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
 .header-btn {
-  padding:5px 14px; font-size:12px; border:1px solid #ccc;
-  background:#fff; border-radius:4px; cursor:pointer; transition:all 0.15s;
+  padding:5px 14px; font-size:12px; border:1px solid var(--popup-border);
+  background:var(--bg-primary); border-radius:4px; cursor:pointer; transition:all 0.15s;
+  color:var(--text-primary);
 }
-.header-btn:hover { background:#e3f2fd; border-color:#90caf9; }
-.header-btn.primary { background:#1976d2; color:#fff; border-color:#1976d2; }
-.header-btn.primary:hover { background:#1565c0; }
-.header-btn.danger { color:#d32f2f; border-color:#ffcdd2; }
-.header-btn.danger:hover { background:#ffebee; }
-#save-indicator { font-size:12px; color:#999; min-width:50px; text-align:right; }
+.header-btn:hover { background:var(--accent-light); border-color:var(--accent-border); }
+.header-btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+.header-btn.primary:hover { background:var(--accent-hover); }
+.header-btn.danger { color:var(--danger); border-color:var(--danger-border); }
+.header-btn.danger:hover { background:var(--danger-hover); }
+#save-indicator { font-size:12px; color:var(--text-light); min-width:50px; text-align:right; }
 
 #doc-body { flex:1; overflow-y:auto; padding:20px 24px 40px; }
 
-/* ====== 编辑器 ====== */
 #editor-area { display:flex; flex-direction:column; height:100%; }
 #editor-toolbar {
   display:flex; align-items:center; gap:2px; flex-wrap:wrap;
-  padding:6px 8px; background:#f8f9fa; border:1px solid #ddd;
+  padding:6px 8px; background:var(--bg-secondary); border:1px solid var(--border);
   border-bottom:none; border-radius:6px 6px 0 0; flex-shrink:0;
 }
 .ed-tb-btn {
   width:30px; height:28px; display:flex; align-items:center; justify-content:center;
   border:none; background:transparent; border-radius:3px; cursor:pointer;
-  font-size:13px; color:#444; transition:all 0.12s;
+  font-size:13px; color:var(--text-secondary); transition:all 0.12s;
 }
-.ed-tb-btn:hover { background:#e3f2fd; color:#1976d2; }
-.ed-tb-sep { width:1px; height:18px; background:#ddd; margin:0 4px; }
+.ed-tb-btn:hover { background:var(--accent-light); color:var(--accent); }
+.ed-tb-sep { width:1px; height:18px; background:var(--border); margin:0 4px; }
 #editor-textarea {
   flex:1; width:100%; min-height:300px;
   padding:14px 16px; font-size:14px; line-height:1.7;
   font-family:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  border:1px solid #ddd; border-top:none; border-radius:0 0 6px 6px; resize:vertical;
-  outline:none; transition:border-color 0.2s;
+  border:1px solid var(--border); border-top:none; border-radius:0 0 6px 6px; resize:vertical;
+  outline:none; transition:border-color 0.2s; background:var(--bg-primary); color:var(--text-primary);
 }
-#editor-textarea:focus { border-color:#1976d2; box-shadow:0 0 0 2px rgba(25,118,210,0.1); }
+#editor-textarea:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(25,118,210,0.1); }
 
-/* ====== 欢迎界面 ====== */
-.welcome { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#888; text-align:center; padding:40px; }
+.welcome { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-light); text-align:center; padding:40px; }
 .welcome-icon { font-size:44px; margin-bottom:14px; opacity:0.35; }
-.welcome h3 { font-size:17px; color:#555; margin-bottom:6px; font-weight:500; }
-.welcome p { font-size:13px; line-height:1.8; color:#999; max-width:340px; }
+.welcome h3 { font-size:17px; color:var(--text-secondary); margin-bottom:6px; font-weight:500; }
+.welcome p { font-size:13px; line-height:1.8; color:var(--text-light); max-width:340px; }
 
-/* ====== 文档内容样式 ====== */
-.doc-content h1 { font-size:24px; margin:0 0 14px; padding-bottom:8px; border-bottom:2px solid #1976d2; color:#1a1a1a; }
-.doc-content h2 { font-size:19px; margin:22px 0 8px; color:#2c3e50; }
-.doc-content h3 { font-size:16px; margin:18px 0 6px; color:#34495e; }
-.doc-content h4 { font-size:14px; margin:14px 0 5px; color:#444; }
-.doc-content p { margin:8px 0; line-height:1.8; font-size:14px; color:#333; }
-.doc-content ul, .doc-content ol { margin:6px 0 6px 22px; line-height:1.8; font-size:14px; }
+.doc-content h1 { font-size:24px; margin:0 0 14px; padding-bottom:8px; border-bottom:2px solid var(--accent); color:var(--text-primary); }
+.doc-content h2 { font-size:19px; margin:22px 0 8px; color:var(--text-primary); }
+.doc-content h3 { font-size:16px; margin:18px 0 6px; color:var(--text-primary); }
+.doc-content h4 { font-size:14px; margin:14px 0 5px; color:var(--text-muted); }
+.doc-content p { margin:8px 0; line-height:1.8; font-size:14px; color:var(--text-primary); }
+.doc-content ul, .doc-content ol { margin:6px 0 6px 22px; line-height:1.8; font-size:14px; color:var(--text-primary); }
 .doc-content li { margin:3px 0; }
 .doc-content code {
-  background:#f0f2f5; padding:1px 5px; border-radius:3px;
-  font-size:13px; font-family:"SFMono-Regular",Consolas,monospace; color:#d63384;
+  background:var(--code-bg); padding:1px 5px; border-radius:3px;
+  font-size:13px; font-family:"SFMono-Regular",Consolas,monospace; color:var(--code-color);
 }
 .doc-content pre {
-  background:#f6f8fa; padding:12px 14px; border-radius:6px;
-  overflow-x:auto; margin:10px 0; border:1px solid #e8e8e8;
+  background:var(--pre-bg); padding:12px 14px; border-radius:6px;
+  overflow-x:auto; margin:10px 0; border:1px solid var(--pre-border);
 }
-.doc-content pre code { background:none; padding:0; color:#333; font-size:13px; }
+.doc-content pre code { background:none; padding:0; color:var(--text-primary); font-size:13px; }
 .doc-content blockquote {
-  border-left:4px solid #1976d2; padding:6px 14px;
-  margin:10px 0; background:#f8f9fa; color:#555; font-style:italic;
+  border-left:4px solid var(--accent); padding:6px 14px;
+  margin:10px 0; background:var(--bg-secondary); color:var(--text-secondary); font-style:italic;
 }
 .doc-content table { border-collapse:collapse; width:100%; margin:10px 0; font-size:13px; }
-.doc-content th,.doc-content td { border:1px solid #ddd; padding:6px 10px; text-align:left; }
-.doc-content th { background:#f5f7fa; font-weight:600; }
-.doc-content tr:nth-child(even) { background:#fafbfc; }
-.doc-content a { color:#1976d2; text-decoration:none; }
+.doc-content th,.doc-content td { border:1px solid var(--border); padding:6px 10px; text-align:left; color:var(--text-primary); }
+.doc-content th { background:var(--bg-tertiary); font-weight:600; }
+.doc-content tr:nth-child(even) { background:var(--bg-secondary); }
+.doc-content a { color:var(--accent); text-decoration:none; }
 .doc-content a:hover { text-decoration:underline; }
 .doc-content strong { font-weight:700; }
-.doc-content hr { border:none; border-top:1px solid #eee; margin:18px 0; }
+.doc-content hr { border:none; border-top:1px solid var(--border-light); margin:18px 0; }
 
-/* ====== 加载 / 错误 / 暂无文档 ====== */
 .loading-container { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; }
-.spinner { width:32px; height:32px; border:3px solid #e0e0e0; border-top-color:#1976d2; border-radius:50%; animation:spin 0.7s linear infinite; }
+.spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
-.loading-text { margin-top:12px; font-size:14px; color:#888; }
+.loading-text { margin-top:12px; font-size:14px; color:var(--text-light); }
 
 .error-container { padding:40px 20px; text-align:center; }
-.error-box { background:#fff5f5; border:1px solid #ffc9c9; border-radius:8px; padding:20px; max-width:400px; margin:0 auto; }
-.error-title { font-size:15px; color:#c92a2a; font-weight:600; margin-bottom:6px; }
-.error-detail { font-size:13px; color:#868e96; margin-bottom:14px; word-break:break-all; line-height:1.5; }
-.retry-btn { background:#c92a2a; color:#fff; border:none; padding:7px 22px; border-radius:5px; font-size:13px; cursor:pointer; transition:background 0.2s; }
-.retry-btn:hover { background:#a51e1e; }
+.error-box { background:var(--danger-bg); border:1px solid var(--danger-border); border-radius:8px; padding:20px; max-width:400px; margin:0 auto; }
+.error-title { font-size:15px; color:var(--danger); font-weight:600; margin-bottom:6px; }
+.error-detail { font-size:13px; color:var(--text-light); margin-bottom:14px; word-break:break-all; line-height:1.5; }
+.retry-btn { background:var(--danger); color:#fff; border:none; padding:7px 22px; border-radius:5px; font-size:13px; cursor:pointer; transition:background 0.2s; }
+.retry-btn:hover { filter:brightness(1.15); }
 
-.no-doc { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:#aaa; }
+.no-doc { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:var(--text-light); }
 .no-doc-text { font-size:14px; }
 
-/* ====== 节点激活高亮（仅红色文字）====== */
 .markmap-node[data-active="true"] foreignObject > div,
-.markmap-node[data-active="true"] .markmap-foreign > div {
-  color:#d32f2f !important;
+.markmap-node[data-active="true"] .markmap-foreign > div { color:var(--danger) !important; }
+
+.markmap-node .markmap-foreign > div[contenteditable]:focus {
+  outline:2px solid var(--accent); outline-offset:1px;
+  border-radius:2px; min-width:20px; background:var(--editable-bg);
 }
 
-/* ====== 文件导入隐藏 input ====== */
-#import-input { display:none; }
+#import-input, #open-file-input { display:none; }
 
-/* ====== 响应式 ====== */
 @media (max-width:768px) {
   #app { flex-direction:column; }
-  #app { flex-direction:column; }
-  #left-panel { width:100% !important; height:50vh; border-right:none; border-bottom:1px solid #e8e8e8; }
+  #left-panel { width:100% !important; height:50vh; border-right:none; border-bottom:1px solid var(--border-light); }
   #splitter { display:none; }
   #doc-panel { width:100% !important; height:50vh; }
   #doc-body { padding:14px 16px 30px; }
@@ -213,15 +337,25 @@ html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe 
     <div id="menubar"></div>
     <!-- 快捷工具栏 -->
     <div id="toolbar">
-      <button class="tool-btn" data-action="save-file">Save</button>
+      <button class="tool-btn" data-action="save-file" data-i18n="saveBtn">Save</button>
       <span class="tool-sep"></span>
-      <button class="tool-btn" data-action="add-child">+Child</button>
-      <button class="tool-btn" data-action="add-sibling">+Sibling</button>
-      <button class="tool-btn" data-action="rename">Rename</button>
-      <button class="tool-btn" data-action="delete">Delete</button>
+      <button class="tool-btn" data-action="add-child" data-i18n="addChildBtn">+Child</button>
+      <button class="tool-btn" data-action="add-sibling" data-i18n="addSiblingBtn">+Sibling</button>
+      <button class="tool-btn" data-action="rename" data-i18n="renameBtn">Rename</button>
+      <button class="tool-btn" data-action="delete" data-i18n="deleteBtn">Delete</button>
       <span class="tool-sep"></span>
-      <button class="tool-btn" data-action="expand-all">Expand</button>
-      <button class="tool-btn" data-action="collapse-all">Collapse</button>
+      <button class="tool-btn" data-action="expand-all" data-i18n="expandBtn">Expand</button>
+      <button class="tool-btn" data-action="collapse-all" data-i18n="collapseBtn">Collapse</button>
+      <span class="tool-sep"></span>
+      <button class="tool-btn" id="btn-search" title="Search">🔍</button>
+      <button class="tool-btn" id="btn-dark-mode" title="Dark Mode">🌙</button>
+      <button class="tool-btn" id="btn-lang" title="Language">EN</button>
+    </div>
+    <!-- 搜索栏 -->
+    <div id="search-bar" class="hidden">
+      <input id="search-input" type="text" placeholder="搜索节点..." data-i18n-placeholder="searchPlaceholder">
+      <span id="search-count"></span>
+      <button id="search-close">✕</button>
     </div>
     <!-- 思维导图 -->
     <div id="mindmap-panel">
@@ -235,7 +369,7 @@ html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe 
   <!-- 右侧文档面板 -->
   <div id="doc-panel">
     <div id="doc-header">
-      <span id="node-title">文档查看</span>
+      <span id="node-title" data-i18n="docView">文档查看</span>
       <div id="header-actions">
         <button class="header-btn" id="edit-toggle-btn" style="display:none">Edit</button>
         <span id="save-indicator"></span>
@@ -244,8 +378,8 @@ html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe 
     <div id="doc-body">
       <div class="welcome" id="welcome">
         <div class="welcome-icon">&#128196;</div>
-        <h3>欢迎使用思维导图查看器</h3>
-        <p>点击左侧导图节点查看详情，或使用菜单/工具栏新建、修改、删除节点。所有更改自动保存到浏览器本地。</p>
+        <h3 data-i18n="welcomeTitle">欢迎使用思维导图查看器</h3>
+        <p data-i18n="welcomeDesc">点击左侧导图节点查看详情，或使用菜单/工具栏新建、修改、删除节点。所有更改自动保存到浏览器本地。</p>
       </div>
       <div class="doc-content" id="content-area" style="display:none"></div>
       <div id="editor-area" style="display:none">
@@ -275,7 +409,7 @@ html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe 
       </div>
       <div class="error-container" id="error-area" style="display:none"></div>
       <div class="no-doc" id="no-doc-area" style="display:none">
-        <div class="no-doc-text">该节点暂无详细文档</div>
+        <div class="no-doc-text" data-i18n="noDoc">该节点暂无详细文档</div>
       </div>
     </div>
   </div>
@@ -284,6 +418,20 @@ html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe 
 <!-- 文件导入用隐藏 input -->
 <input type="file" id="import-input" accept=".json">
 <input type="file" id="open-file-input" accept=".mdpro,.json" style="display:none">
+
+<!-- 右键菜单 -->
+<div id="context-menu">
+  <div class="ctx-item has-sub" id="ctx-move-to">
+    <span data-i18n="moveTo">移到到...</span><span class="arrow">▶</span>
+    <div class="ctx-sub" id="ctx-move-sub"></div>
+  </div>
+  <div class="ctx-item" id="ctx-move-up" data-i18n="moveUp">上移</div>
+  <div class="ctx-item" id="ctx-move-down" data-i18n="moveDown">下移</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item danger" id="ctx-delete" data-i18n="deleteBtn">删除节点</div>
+</div>
+<!-- 节点操作触发按钮（选中节点时显示） -->
+<div id="ctx-trigger" title="节点操作">⋮</div>
 
 <script>
 /* ============================================================
@@ -370,11 +518,105 @@ const EMBEDDED_FILES = {
 };
 
 /* ============================================================
-   3. Markmap 选项
+   3. i18n 国际化
+   ============================================================ */
+const LANG = {
+  zh: {
+    file:'文件', edit:'编辑', view:'查看',
+    new:'新建', open:'打开...', save:'保存', saveAs:'另存为...',
+    exportJSON:'导出 JSON', importJSON:'导入 JSON',
+    addChild:'添加子节点', addSibling:'添加同级节点', rename:'重命名', delete:'删除',
+    expandAll:'全部展开', collapseAll:'全部折叠', resetView:'重置视图',
+    saveBtn:'保存', addChildBtn:'+子节点', addSiblingBtn:'+同级',
+    renameBtn:'重命名', deleteBtn:'删除', expandBtn:'展开', collapseBtn:'折叠',
+    searchToggle:'搜索', darkToggle:'暗色', langToggle:'EN', dragMode:'拖动',
+    edit:'编辑', view:'查看', saved:'已保存', saving:'保存中...', unsaved:'未保存',
+    welcomeTitle:'欢迎使用思维导图查看器',
+    welcomeDesc:'点击左侧导图节点查看详情，或使用菜单/工具栏新建、修改、删除节点。所有更改自动保存到浏览器本地。',
+    noDoc:'该节点暂无详细文档', loading:'正在加载文档...', error:'加载失败', retry:'重试',
+    confirmNew:'确定要新建思维导图吗？当前未保存的更改将丢失。',
+    confirmDelete:'确定删除该节点及其所有子节点吗？',
+    selectNode:'请先点击选中一个节点', nodeNotFound:'选中的节点未找到',
+    noRootSibling:'根节点不能添加同级', noDeleteRoot:'不能删除根节点',
+    searchPlaceholder:'搜索节点...', noResults:'无匹配结果',
+    newNode:'新节点', newProject:'新项目', editHere:'在此编辑内容...',
+    docView:'文档查看', nodeFile:'文件',
+    moveTo:'移到到...', moveUp:'上移', moveDown:'下移',
+    cannotMoveToSelf:'不能将节点移动到自己或子树下',
+  },
+  en: {
+    file:'File', edit:'Edit', view:'View',
+    new:'New', open:'Open...', save:'Save', saveAs:'Save As...',
+    exportJSON:'Export JSON', importJSON:'Import JSON',
+    addChild:'Add Child', addSibling:'Add Sibling', rename:'Rename', delete:'Delete',
+    expandAll:'Expand All', collapseAll:'Collapse All', resetView:'Reset View',
+    saveBtn:'Save', addChildBtn:'+Child', addSiblingBtn:'+Sibling',
+    renameBtn:'Rename', deleteBtn:'Delete', expandBtn:'Expand', collapseBtn:'Collapse',
+    searchToggle:'Search', darkToggle:'Dark', langToggle:'中文', dragMode:'Drag',
+    edit:'Edit', view:'View', saved:'Saved', saving:'Saving...', unsaved:'Unsaved',
+    welcomeTitle:'Welcome to MindMap Viewer',
+    welcomeDesc:'Click a node to view details, or use the menu/toolbar to add, edit, delete nodes. All changes are auto-saved locally.',
+    noDoc:'No document for this node', loading:'Loading document...', error:'Load failed', retry:'Retry',
+    confirmNew:'Create a new mind map? Unsaved changes will be lost.',
+    confirmDelete:'Delete this node and all its children?',
+    selectNode:'Please select a node first', nodeNotFound:'Selected node not found',
+    noRootSibling:'Cannot add sibling to root', noDeleteRoot:'Cannot delete root node',
+    searchPlaceholder:'Search nodes...', noResults:'No results',
+    newNode:'New Node', newProject:'New Project', editHere:'Edit content here...',
+    docView:'Document View', nodeFile:'File',
+    moveTo:'Move to...', moveUp:'Move Up', moveDown:'Move Down',
+    cannotMoveToSelf:'Cannot move to self or descendant',
+  }
+};
+var currentLang = localStorage.getItem('mdpro-lang') || 'zh';
+function t(key) { return (LANG[currentLang] && LANG[currentLang][key]) || key; }
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('mdpro-lang', lang);
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  renderMenubar();
+  applyI18n();
+  updateUIStrings();
+}
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.getElementById('btn-lang').textContent = t('langToggle');
+  var dt = document.getElementById('btn-dark-mode');
+  dt.textContent = darkMode ? '☀️' : '🌙';
+  dt.title = t('darkToggle');
+  document.getElementById('btn-search').title = t('searchToggle');
+}
+function updateUIStrings() {
+  /* 更新静态欢迎文字 */
+  var welcome = document.getElementById('welcome');
+  if (welcome) {
+    var h3 = welcome.querySelector('h3');
+    var p = welcome.querySelector('p');
+    if (h3) h3.textContent = t('welcomeTitle');
+    if (p) p.textContent = t('welcomeDesc');
+  }
+  var noDocText = document.querySelector('#no-doc-area .no-doc-text');
+  if (noDocText) noDocText.textContent = t('noDoc');
+  var loadingText = document.querySelector('.loading-text');
+  if (loadingText) loadingText.textContent = t('loading');
+  var editToggle = document.getElementById('edit-toggle-btn');
+  if (editToggle) {
+    var isEditing = document.getElementById('editor-area').style.display !== 'none';
+    editToggle.textContent = isEditing ? t('view') : t('edit');
+  }
+}
+
+/* ============================================================
+   4. Markmap 选项
    ============================================================ */
 const MARKMAP_OPTIONS = {
   initialExpandLevel: 2,
-  maxWidth: 300,
+  maxWidth: 600,
   spacingHorizontal: 80,
   spacingVertical: 5,
   colorFreezeLevel: 2,
@@ -384,38 +626,38 @@ const MARKMAP_OPTIONS = {
 };
 
 /* ============================================================
-   4. 菜单配置
+   5. 菜单配置（使用 i18n key）
    ============================================================ */
 const MENU_DEFS = [
   {
-    label: 'File',
+    labelKey: 'file',
     items: [
-      { label: 'New',           action: 'new',           shortcut: 'Ctrl+N' },
+      { labelKey: 'new',       action: 'new',           shortcut: 'Ctrl+N' },
       null,
-      { label: 'Open...',       action: 'open-file',     shortcut: 'Ctrl+O' },
-      { label: 'Save',          action: 'save-file',     shortcut: 'Ctrl+S' },
-      { label: 'Save As...',    action: 'save-as-file',  shortcut: 'Ctrl+Shift+S' },
+      { labelKey: 'open',      action: 'open-file',     shortcut: 'Ctrl+O' },
+      { labelKey: 'save',      action: 'save-file',     shortcut: 'Ctrl+S' },
+      { labelKey: 'saveAs',    action: 'save-as-file',  shortcut: 'Ctrl+Shift+S' },
       null,
-      { label: 'Export JSON',   action: 'export-json' },
-      { label: 'Import JSON',   action: 'import-json' },
+      { labelKey: 'exportJSON', action: 'export-json' },
+      { labelKey: 'importJSON', action: 'import-json' },
     ]
   },
   {
-    label: 'Edit',
+    labelKey: 'edit',
     items: [
-      { label: 'Add Child',     action: 'add-child',    shortcut: 'Ins' },
-      { label: 'Add Sibling',   action: 'add-sibling' },
-      { label: 'Rename',        action: 'rename',       shortcut: 'F2' },
+      { labelKey: 'addChild',   action: 'add-child',    shortcut: 'Ins' },
+      { labelKey: 'addSibling', action: 'add-sibling' },
+      { labelKey: 'rename',     action: 'rename',       shortcut: 'F2' },
       null,
-      { label: 'Delete',        action: 'delete',       shortcut: 'Del' },
+      { labelKey: 'delete',     action: 'delete',       shortcut: 'Del' },
     ]
   },
   {
-    label: 'View',
+    labelKey: 'view',
     items: [
-      { label: 'Expand All',    action: 'expand-all' },
-      { label: 'Collapse All',  action: 'collapse-all' },
-      { label: 'Reset View',    action: 'reset-view' },
+      { labelKey: 'expandAll',   action: 'expand-all' },
+      { labelKey: 'collapseAll', action: 'collapse-all' },
+      { labelKey: 'resetView',   action: 'reset-view' },
     ]
   }
 ];
@@ -430,6 +672,236 @@ let selectedNodeEl = null;      /* 当前选中的 DOM 节点 */
 let isEditorDirty = false;      /* 编辑器内容是否已修改 */
 let editorFileAtOpen = null;    /* 打开编辑器时的文件路径，用于取消时恢复 */
 let currentFileHandle = null;   /* File System Access API 的文件句柄，用于保存到同一文件 */
+
+/* ---- 暗色模式 ---- */
+var darkMode = localStorage.getItem('mdpro-dark') === 'true';
+function toggleDarkMode() {
+  darkMode = !darkMode;
+  localStorage.setItem('mdpro-dark', darkMode);
+  document.body.classList.toggle('dark', darkMode);
+  applyI18n();
+}
+
+/* ---- 搜索 ---- */
+var searchResults = [];
+var searchCurrentIdx = -1;
+function toggleSearch() {
+  var bar = document.getElementById('search-bar');
+  bar.classList.toggle('hidden');
+  if (!bar.classList.contains('hidden')) {
+    document.getElementById('search-input').focus();
+  } else {
+    clearSearch();
+  }
+}
+function clearSearch() {
+  searchResults = [];
+  searchCurrentIdx = -1;
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-count').textContent = '';
+  document.querySelectorAll('.markmap-node.search-match').forEach(function(el) {
+    el.classList.remove('search-match');
+  });
+  document.querySelectorAll('.markmap-node.search-current').forEach(function(el) {
+    el.classList.remove('search-current');
+  });
+}
+function doSearch(query) {
+  clearSearch();
+  if (!query || !query.trim()) return;
+  query = query.trim().toLowerCase();
+  /* 递归搜索树 */
+  function walk(node) {
+    if (node.content && node.content.toLowerCase().indexOf(query) !== -1) {
+      searchResults.push(node.file);
+    }
+    if (node.children) node.children.forEach(walk);
+  }
+  walk(appData.treeData);
+  /* 高亮匹配节点 */
+  searchResults.forEach(function(file) {
+    var el = findNodeElByFile(file);
+    if (el) el.classList.add('search-match');
+  });
+  searchCurrentIdx = searchResults.length > 0 ? 0 : -1;
+  updateSearchCount();
+  if (searchCurrentIdx >= 0) focusSearchResult();
+}
+function focusSearchResult() {
+  document.querySelectorAll('.markmap-node.search-current').forEach(function(el) {
+    el.classList.remove('search-current');
+  });
+  if (searchCurrentIdx < 0 || searchCurrentIdx >= searchResults.length) return;
+  var file = searchResults[searchCurrentIdx];
+  var el = findNodeElByFile(file);
+  if (el) {
+    el.classList.add('search-current');
+    /* 滚动到该节点 */
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(_) {}
+  }
+  updateSearchCount();
+}
+function updateSearchCount() {
+  var cnt = document.getElementById('search-count');
+  if (searchResults.length === 0) {
+    cnt.textContent = searchCurrentIdx < 0 ? '' : t('noResults');
+  } else {
+    cnt.textContent = (searchCurrentIdx + 1) + '/' + searchResults.length;
+  }
+}
+function nextSearchResult() {
+  if (searchResults.length === 0) return;
+  searchCurrentIdx = (searchCurrentIdx + 1) % searchResults.length;
+  focusSearchResult();
+}
+function prevSearchResult() {
+  if (searchResults.length === 0) return;
+  searchCurrentIdx = (searchCurrentIdx - 1 + searchResults.length) % searchResults.length;
+  focusSearchResult();
+}
+
+/* ---- 右键菜单（移动、上移、下移、删除） ---- */
+var _ctxFile = null; /* 右键点击的节点 file */
+
+function showContextMenu(e, file) {
+  hideContextMenu();
+  _ctxFile = file;
+  var menu = document.getElementById('context-menu');
+  /* 构建 "移到到..." 子菜单 */
+  buildMoveToSubmenu(file);
+  menu.style.display = 'block';
+  /* 定位 */
+  var x = Math.min(e.clientX, window.innerWidth - 180);
+  var y = Math.min(e.clientY, window.innerHeight - 200);
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+}
+
+function hideContextMenu() {
+  document.getElementById('context-menu').style.display = 'none';
+  _ctxFile = null;
+}
+
+function showContextTrigger() {
+  var trigger = document.getElementById('ctx-trigger');
+  trigger.classList.add('show');
+  if (selectedNodeEl) {
+    var rect = selectedNodeEl.getBoundingClientRect();
+    trigger.style.left = (rect.right + 6) + 'px';
+    trigger.style.top = (rect.top - 4) + 'px';
+    trigger.style.right = 'auto';
+    trigger.style.bottom = 'auto';
+  }
+}
+function hideContextTrigger() {
+  document.getElementById('ctx-trigger').classList.remove('show');
+}
+
+function buildMoveToSubmenu(file) {
+  var sub = document.getElementById('ctx-move-sub');
+  sub.innerHTML = '';
+  /* 收集所有可作为父节点的候选 */
+  function collectCandidates(node, candidates) {
+    if (node.file && node.file !== file) {
+      /* 排除自身及其子树 */
+      var isDescendant = false;
+      function checkDescendant(n) {
+        if (n.file === file) { isDescendant = true; return true; }
+        if (n.children) { return n.children.some(checkDescendant); }
+        return false;
+      }
+      if (!checkDescendant(node)) {
+        candidates.push({ file: node.file, name: node.content });
+      }
+    }
+    if (node.children) node.children.forEach(function(c) { collectCandidates(c, candidates); });
+  }
+  var candidates = [];
+  collectCandidates(appData.treeData, candidates);
+  if (candidates.length === 0) {
+    var div = document.createElement('div');
+    div.className = 'ctx-item';
+    div.textContent = '-';
+    div.style.cursor = 'default';
+    sub.appendChild(div);
+    return;
+  }
+  candidates.forEach(function(c) {
+    var div = document.createElement('div');
+    div.className = 'ctx-item';
+    div.textContent = c.name;
+    div.addEventListener('click', function(e) {
+      e.stopPropagation();
+      moveNodeTo(_ctxFile, c.file);
+      hideContextMenu();
+    });
+    sub.appendChild(div);
+  });
+}
+
+function moveNodeUp(file) {
+  var parent = findParentNode(appData.treeData, file);
+  if (!parent || !parent.children) return;
+  var idx = -1;
+  for (var i = 0; i < parent.children.length; i++) {
+    if (parent.children[i].file === file) { idx = i; break; }
+  }
+  if (idx <= 0) return;
+  var tmp = parent.children[idx];
+  parent.children[idx] = parent.children[idx - 1];
+  parent.children[idx - 1] = tmp;
+  renderMindmap(appData.treeData);
+  scheduleAutoSave();
+  setTimeout(function() { trySelectNodeByFile(file, 0); }, 100);
+}
+
+function moveNodeDown(file) {
+  var parent = findParentNode(appData.treeData, file);
+  if (!parent || !parent.children) return;
+  var idx = -1;
+  for (var i = 0; i < parent.children.length; i++) {
+    if (parent.children[i].file === file) { idx = i; break; }
+  }
+  if (idx === -1 || idx >= parent.children.length - 1) return;
+  var tmp = parent.children[idx];
+  parent.children[idx] = parent.children[idx + 1];
+  parent.children[idx + 1] = tmp;
+  renderMindmap(appData.treeData);
+  scheduleAutoSave();
+  setTimeout(function() { trySelectNodeByFile(file, 0); }, 100);
+}
+
+function moveNodeTo(sourceFile, targetFile) {
+  if (sourceFile === targetFile) return;
+  /* 检查是否移动到自己的子树 */
+  function isDescendant(parentFile, childFile) {
+    var p = findNodeByFile(appData.treeData, parentFile);
+    if (!p || !p.children) return false;
+    for (var i = 0; i < p.children.length; i++) {
+      if (p.children[i].file === childFile) return true;
+      if (isDescendant(p.children[i].file, childFile)) return true;
+    }
+    return false;
+  }
+  if (isDescendant(sourceFile, targetFile)) { alert(t('cannotMoveToSelf')); return; }
+  var sourceNode = findNodeByFile(appData.treeData, sourceFile);
+  if (!sourceNode) return;
+  var sourceParent = findParentNode(appData.treeData, sourceFile);
+  if (!sourceParent) return;
+  var idx = -1;
+  for (var i = 0; i < sourceParent.children.length; i++) {
+    if (sourceParent.children[i].file === sourceFile) { idx = i; break; }
+  }
+  if (idx === -1) return;
+  var removed = sourceParent.children.splice(idx, 1)[0];
+  var targetNode = findNodeByFile(appData.treeData, targetFile);
+  if (!targetNode) return;
+  if (!targetNode.children) targetNode.children = [];
+  targetNode.children.push(removed);
+  renderMindmap(appData.treeData);
+  scheduleAutoSave();
+  setTimeout(function() { trySelectNodeByFile(sourceFile, 0); }, 100);
+}
 
 /* ============================================================
    6. 工具函数
@@ -518,8 +990,8 @@ function renderMenubar() {
   MENU_DEFS.forEach(function(def) {
     var trigger = document.createElement('div');
     trigger.className = 'menu-trigger';
-    trigger.textContent = def.label;
-    trigger.dataset.menu = def.label;
+    trigger.textContent = t(def.labelKey);
+    trigger.dataset.menu = def.labelKey;
 
     var popup = document.createElement('div');
     popup.className = 'menu-popup';
@@ -534,7 +1006,7 @@ function renderMenubar() {
         opt.dataset.action = item.action;
 
         var labelSpan = document.createElement('span');
-        labelSpan.textContent = item.label;
+        labelSpan.textContent = t(item.labelKey);
         opt.appendChild(labelSpan);
 
         if (item.shortcut) {
@@ -641,6 +1113,21 @@ function flushEditor() {
   }
 }
 
+/* 错误显示 */
+function showError(msg, onRetry) {
+  var html = '<div class="error-box">'
+    + '<div class="error-title">' + t('error') + '</div>'
+    + '<div class="error-detail">' + escapeHtml(msg) + '</div>';
+  if (onRetry) {
+    html += '<button class="retry-btn" id="error-retry-btn">' + t('retry') + '</button>';
+  }
+  html += '</div>';
+  errorArea.innerHTML = html;
+  showSection(errorArea);
+  var retryBtn = document.getElementById('error-retry-btn');
+  if (retryBtn) retryBtn.addEventListener('click', onRetry);
+}
+
 /* 选中节点后的文档加载 */
 async function loadNodeDocument(filePath) {
   showSection(loadingArea);
@@ -653,7 +1140,7 @@ async function loadNodeDocument(filePath) {
     /* 切换到查看模式 */
     switchToViewMode(filePath);
   } catch (err) {
-    showError('加载失败：' + err.message, function() { loadNodeDocument(filePath); });
+    showError(err.message, function() { loadNodeDocument(filePath); });
   }
 }
 
@@ -662,7 +1149,7 @@ function switchToViewMode(filePath) {
   var md = appData.contents[filePath] || EMBEDDED_FILES[filePath] || '';
   contentArea.innerHTML = marked.parse(md);
   showSection(contentArea);
-  editToggleBtn.textContent = 'Edit';
+  editToggleBtn.textContent = t('edit');
   editToggleBtn.className = 'header-btn';
   editToggleBtn.style.display = '';
   editorFileAtOpen = null;
@@ -676,7 +1163,7 @@ function switchToEditMode(filePath) {
   editorFileAtOpen = filePath;
   isEditorDirty = false;
   showSection(editorArea);
-  editToggleBtn.textContent = 'View';
+  editToggleBtn.textContent = t('view');
   editToggleBtn.className = 'header-btn primary';
   editorTextarea.focus();
   saveIndicator.textContent = '';
@@ -688,7 +1175,7 @@ function saveEditorContent() {
   var newMd = editorTextarea.value;
   appData.contents[editorFileAtOpen] = newMd;
   isEditorDirty = false;
-  saveIndicator.textContent = 'Saved';
+  saveIndicator.textContent = t('saved');
   scheduleAutoSave();
 }
 
@@ -720,17 +1207,17 @@ function cancelEdit() {
 /* 编辑器内容变化时标记脏 + 自动保存 */
 editorTextarea.addEventListener('input', function() {
   isEditorDirty = true;
-  saveIndicator.textContent = 'Unsaved';
+  saveIndicator.textContent = t('unsaved');
   debouncedAutoSaveEditor();
 });
 
 /* 编辑器自动保存（防抖 1.5s） */
 var debouncedAutoSaveEditor = debounce(function() {
   if (!editorFileAtOpen || !isEditorDirty) return;
-  saveIndicator.textContent = 'Saving...';
+  saveIndicator.textContent = t('saving');
   appData.contents[editorFileAtOpen] = editorTextarea.value;
   isEditorDirty = false;
-  saveIndicator.textContent = 'Saved';
+  saveIndicator.textContent = t('saved');
   scheduleAutoSave();
 }, 1500);
 
@@ -820,8 +1307,9 @@ document.getElementById('editor-toolbar').addEventListener('click', function(e) 
 
 /* 点击节点回调（由事件代理触发） */
 function handleNodeClick(nodeData, nodeEl) {
-  /* 切换节点前强制保存当前编辑器内容 */
+  /* 切换节点前强制保存当前编辑器内容 + 退出内联重命名 */
   flushEditor();
+  exitInlineRename();
 
   var raw = nodeData.data || nodeData;
   var file = raw.file;
@@ -830,6 +1318,7 @@ function handleNodeClick(nodeData, nodeEl) {
   updateActiveNode(nodeEl);
   selectedNodeEl = nodeEl;
   selectedFilePath = file || null;
+  showContextTrigger();
 
   if (!file || !file.trim()) {
     showSection(noDocArea);
@@ -841,6 +1330,9 @@ function handleNodeClick(nodeData, nodeEl) {
   nodeTitleEl.textContent = raw.content || file;
   editToggleBtn.style.display = '';
   loadNodeDocument(file);
+
+  /* 进入内联重命名模式 */
+  enterInlineRename(nodeEl);
 }
 
 /* 激活态控制 */
@@ -853,13 +1345,15 @@ function updateActiveNode(nodeEl) {
 
 /* --- 新建导图 --- */
 function handleNew() {
-  if (!confirm('确定要新建思维导图吗？当前未保存的更改将丢失。')) return;
+  if (!confirm(t('confirmNew'))) return;
+  exitInlineRename();
   var fid = genFileId();
-  appData.treeData = { content: '新项目', file: fid };
+  appData.treeData = { content: t('newProject'), file: fid };
   appData.contents = {};
-  appData.contents[fid] = '# 新项目\n\n欢迎使用思维导图！使用菜单或工具栏添加节点。';
+  appData.contents[fid] = '# ' + t('newProject') + '\n\n' + t('editHere');
   selectedFilePath = null;
   selectedNodeEl = null;
+  hideContextTrigger();
   showSection(welcomeEl);
   nodeTitleEl.textContent = '文档查看';
   editToggleBtn.style.display = 'none';
@@ -873,11 +1367,11 @@ function handleSave() {
     appData.contents[editorFileAtOpen] = editorTextarea.value;
     isEditorDirty = false;
   }
-  saveIndicator.textContent = 'Saving...';
+  saveIndicator.textContent = t('saving');
   doSave();
-  saveIndicator.textContent = 'Saved';
+  saveIndicator.textContent = t('saved');
   setTimeout(function() {
-    if (saveIndicator.textContent === 'Saved') saveIndicator.textContent = '';
+    if (saveIndicator.textContent === t('saved')) saveIndicator.textContent = '';
   }, 2000);
 }
 
@@ -913,6 +1407,7 @@ function loadFromParsedData(data, fileName) {
   });
   selectedFilePath = null;
   selectedNodeEl = null;
+  hideContextTrigger();
   showSection(welcomeEl);
   nodeTitleEl.textContent = '文档查看';
   editToggleBtn.style.display = 'none';
@@ -991,7 +1486,7 @@ function handleSaveFile() {
   if (currentFileHandle) {
     /* 已有文件句柄，直接写入 */
     writeFileHandle(currentFileHandle, payload).then(function() {
-      saveIndicator.textContent = 'Saved';
+      saveIndicator.textContent = t('saved');
       doSave();
       setTimeout(function() {
         if (saveIndicator.textContent === 'Saved') saveIndicator.textContent = '';
@@ -1022,7 +1517,7 @@ function handleSaveAsFile() {
       currentFileHandle = handle;
       return writeFileHandle(handle, payload);
     }).then(function() {
-      saveIndicator.textContent = 'Saved';
+      saveIndicator.textContent = t('saved');
       doSave();
       setTimeout(function() {
         if (saveIndicator.textContent === 'Saved') saveIndicator.textContent = '';
@@ -1046,8 +1541,8 @@ function fallbackDownload(payload) {
   a.download = 'mindmap.mdpro';
   a.click();
   URL.revokeObjectURL(url);
-  saveIndicator.textContent = 'Downloaded';
-  setTimeout(function() { if (saveIndicator.textContent === 'Downloaded') saveIndicator.textContent = ''; }, 2000);
+  saveIndicator.textContent = t('saved');
+  setTimeout(function() { if (saveIndicator.textContent === t('saved')) saveIndicator.textContent = ''; }, 2000);
 }
 
 /* --- Open 文件输入（降级方案） --- */
@@ -1072,56 +1567,46 @@ document.getElementById('open-file-input').addEventListener('change', function(e
 
 /* --- 添加子节点 --- */
 function handleAddChild() {
-  if (!selectedFilePath) { alert('请先点击选中一个节点'); return; }
+  if (!selectedFilePath) { alert(t('selectNode')); return; }
   var parent = findNodeByFile(appData.treeData, selectedFilePath);
-  if (!parent) { alert('选中的节点未找到'); return; }
-  var name = prompt('输入子节点名称：', '新节点');
-  if (!name) return;
+  if (!parent) { alert(t('nodeNotFound')); return; }
+  var name = t('newNode');
   var newFile = genFileId();
   if (!parent.children) parent.children = [];
   parent.children.push({ content: name, file: newFile });
-  appData.contents[newFile] = '# ' + name + '\n\n在此编辑内容...';
+  appData.contents[newFile] = '# ' + name + '\n\n' + t('editHere');
   renderMindmap(appData.treeData);
   scheduleAutoSave();
-  /* 自动选中新节点（延时等渲染） */
-  setTimeout(function() { trySelectNodeByFile(newFile); }, 100);
+  /* 自动选中新节点并进入重命名模式（延时等渲染） */
+  setTimeout(function() { trySelectNodeByFile(newFile, 0); }, 100);
 }
 
 /* --- 添加同级节点 --- */
 function handleAddSibling() {
-  if (!selectedFilePath) { alert('请先点击选中一个节点'); return; }
-  if (selectedFilePath === appData.treeData.file) { alert('根节点不能添加同级'); return; }
+  if (!selectedFilePath) { alert(t('selectNode')); return; }
+  if (selectedFilePath === appData.treeData.file) { alert(t('noRootSibling')); return; }
   var parent = findParentNode(appData.treeData, selectedFilePath);
   if (!parent) return;
-  var name = prompt('输入同级节点名称：', '新节点');
-  if (!name) return;
+  var name = t('newNode');
   var newFile = genFileId();
   parent.children.push({ content: name, file: newFile });
-  appData.contents[newFile] = '# ' + name + '\n\n在此编辑内容...';
+  appData.contents[newFile] = '# ' + name + '\n\n' + t('editHere');
   renderMindmap(appData.treeData);
   scheduleAutoSave();
-  setTimeout(function() { trySelectNodeByFile(newFile); }, 100);
+  setTimeout(function() { trySelectNodeByFile(newFile, 0); }, 100);
 }
 
-/* --- 重命名 --- */
+/* --- 重命名（触发内联编辑模式） --- */
 function handleRename() {
-  if (!selectedFilePath) { alert('请先点击选中一个节点'); return; }
-  var node = findNodeByFile(appData.treeData, selectedFilePath);
-  if (!node) return;
-  var name = prompt('输入新名称：', node.content);
-  if (!name) return;
-  node.content = name;
-  nodeTitleEl.textContent = name;
-  renderMindmap(appData.treeData);
-  scheduleAutoSave();
-  setTimeout(function() { trySelectNodeByFile(selectedFilePath); }, 100);
+  if (!selectedNodeEl) { alert(t('selectNode')); return; }
+  enterInlineRename(selectedNodeEl);
 }
 
 /* --- 删除节点 --- */
 function handleDelete() {
-  if (!selectedFilePath) { alert('请先点击选中一个节点'); return; }
-  if (selectedFilePath === appData.treeData.file) { alert('不能删除根节点'); return; }
-  if (!confirm('确定删除该节点及其所有子节点吗？')) return;
+  if (!selectedFilePath) { alert(t('selectNode')); return; }
+  if (selectedFilePath === appData.treeData.file) { alert(t('noDeleteRoot')); return; }
+  if (!confirm(t('confirmDelete'))) return;
   var parent = findParentNode(appData.treeData, selectedFilePath);
   if (!parent) return;
   var idx = -1;
@@ -1136,6 +1621,7 @@ function handleDelete() {
   parent.children.splice(idx, 1);
   selectedFilePath = null;
   selectedNodeEl = null;
+  hideContextTrigger();
   showSection(welcomeEl);
   nodeTitleEl.textContent = '文档查看';
   editToggleBtn.style.display = 'none';
@@ -1162,14 +1648,149 @@ function handleResetView() {
   mm = Markmap.create('#mindmap', MARKMAP_OPTIONS, deepClone(appData.treeData));
 }
 
-/* 尝试按 file 路径选中节点（延后执行等渲染） */
-function trySelectNodeByFile(file) {
+/* ====== 内联重命名 ====== */
+var inlineRenameNodeEl = null;
+var inlineRenameOrigName = '';
+
+function enterInlineRename(nodeEl) {
+  if (!nodeEl) return;
+  exitInlineRename();
+
+  var contentDiv = nodeEl.querySelector('.markmap-foreign > div');
+  if (!contentDiv) return;
+
+  inlineRenameNodeEl = nodeEl;
+  inlineRenameOrigName = contentDiv.textContent;
+
+  /* 展开 foreignObject 宽度，让文本能自由扩展 */
+  var fo = nodeEl.querySelector('foreignObject');
+  var origWidth = null;
+  if (fo) {
+    origWidth = fo.getAttribute('width');
+    fo.removeAttribute('width');
+    fo.style.maxWidth = '800px';
+    fo.style.overflow = 'visible';
+  }
+
+  contentDiv.contentEditable = 'plaintext-only';
+  contentDiv.style.whiteSpace = 'nowrap';
+
+  /* 实时跟随文本宽度 */
+  contentDiv._renameInputHandler = function() {
+    if (fo) {
+      var w = contentDiv.scrollWidth;
+      if (w > 10) {
+        fo.setAttribute('width', Math.min(w + 16, 800));
+      }
+    }
+  };
+  contentDiv.addEventListener('input', contentDiv._renameInputHandler);
+  /* 立即触发一次，校正当前宽度 */
+  contentDiv._renameInputHandler();
+
+  /* 失焦时自动确认重命名 */
+  contentDiv._renameBlurHandler = function() {
+    exitInlineRename();
+  };
+  contentDiv.addEventListener('blur', contentDiv._renameBlurHandler);
+
+  contentDiv.focus();
+
+  /* 全选文本 */
+  var range = document.createRange();
+  range.selectNodeContents(contentDiv);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function exitInlineRename() {
+  if (!inlineRenameNodeEl) return;
+
+  var contentDiv = inlineRenameNodeEl.querySelector('.markmap-foreign > div');
+  var fo = inlineRenameNodeEl.querySelector('foreignObject');
+  if (contentDiv) {
+    if (contentDiv._renameBlurHandler) {
+      contentDiv.removeEventListener('blur', contentDiv._renameBlurHandler);
+      contentDiv._renameBlurHandler = null;
+    }
+    if (contentDiv._renameInputHandler) {
+      contentDiv.removeEventListener('input', contentDiv._renameInputHandler);
+      contentDiv._renameInputHandler = null;
+    }
+    contentDiv.contentEditable = 'inherit';
+    contentDiv.style.whiteSpace = '';
+
+    var newName = contentDiv.textContent.trim() || inlineRenameOrigName;
+    if (newName !== inlineRenameOrigName) {
+      var datum = d3.select(inlineRenameNodeEl).datum();
+      var raw = datum.data || datum;
+      var node = findNodeByFile(appData.treeData, raw.file);
+      if (node) {
+        node.content = newName;
+        raw.content = newName;
+        if (selectedFilePath === raw.file) {
+          nodeTitleEl.textContent = newName;
+        }
+        /* 同步更新 MD 文档中的第一级标题 */
+        if (appData.contents[raw.file]) {
+          appData.contents[raw.file] = appData.contents[raw.file].replace(/^#\s+.*$/m, '# ' + newName);
+          if (selectedFilePath === raw.file) {
+            if (contentArea.style.display !== 'none') {
+              contentArea.innerHTML = marked.parse(appData.contents[raw.file]);
+            } else if (editorArea.style.display !== 'none' && editorFileAtOpen === raw.file) {
+              editorTextarea.value = appData.contents[raw.file];
+            }
+          }
+        }
+        /* 重新渲染导图，让 markmap 按新名称长度重新计算布局 */
+        if (mm && typeof mm.setData === 'function') {
+          try { mm.setData(deepClone(appData.treeData)); } catch (_) {}
+        }
+        scheduleAutoSave();
+      }
+    }
+  }
+
+  /* 恢复 foreignObject */
+  if (fo) {
+    fo.style.maxWidth = '';
+    fo.style.overflow = '';
+  }
+
+  inlineRenameNodeEl = null;
+  inlineRenameOrigName = '';
+}
+
+function cancelInlineRename() {
+  if (!inlineRenameNodeEl) return;
+
+  var contentDiv = inlineRenameNodeEl.querySelector('.markmap-foreign > div');
+  if (contentDiv) {
+    if (contentDiv._renameBlurHandler) {
+      contentDiv.removeEventListener('blur', contentDiv._renameBlurHandler);
+      contentDiv._renameBlurHandler = null;
+    }
+    contentDiv.contentEditable = 'inherit';
+    contentDiv.textContent = inlineRenameOrigName;
+  }
+
+  inlineRenameNodeEl = null;
+  inlineRenameOrigName = '';
+}
+
+/* 尝试按 file 路径选中节点（带重试机制） */
+function trySelectNodeByFile(file, attempt) {
+  attempt = attempt || 0;
+  if (attempt > 20) return;
   selectedFilePath = file;
   var nodeEl = findNodeElByFile(file);
   if (nodeEl) {
     selectedNodeEl = nodeEl;
     updateActiveNode(nodeEl);
     handleNodeClick({ data: findNodeByFile(appData.treeData, file) }, nodeEl);
+  } else {
+    setTimeout(function() { trySelectNodeByFile(file, attempt + 1); }, 150);
   }
 }
 
@@ -1221,16 +1842,91 @@ editToggleBtn.addEventListener('click', function(e) {
   toggleEditMode();
 });
 
+/* ---- 暗色模式按钮 ---- */
+document.getElementById('btn-dark-mode').addEventListener('click', toggleDarkMode);
+
+/* ---- 语言切换按钮 ---- */
+document.getElementById('btn-lang').addEventListener('click', function() {
+  setLang(currentLang === 'zh' ? 'en' : 'zh');
+});
+
+/* ---- 搜索按钮与交互 ---- */
+document.getElementById('btn-search').addEventListener('click', toggleSearch);
+document.getElementById('search-input').addEventListener('input', function() {
+  doSearch(this.value);
+});
+document.getElementById('search-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (e.shiftKey) prevSearchResult();
+    else nextSearchResult();
+  }
+  if (e.key === 'Escape') { toggleSearch(); }
+});
+document.getElementById('search-close').addEventListener('click', toggleSearch);
+
+/* ---- 右键菜单 ---- */
+/* 节点操作触发按钮 */
+document.getElementById('ctx-trigger').addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (!selectedFilePath) return;
+  var rect = this.getBoundingClientRect();
+  showContextMenu({ clientX: rect.left, clientY: rect.top + rect.height }, selectedFilePath);
+});
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#context-menu') && e.target.id !== 'ctx-trigger') hideContextMenu();
+  /* 点击导图区域外取消选中节点 */
+  if (!e.target.closest('#mindmap-panel') && !e.target.closest('#context-menu') && e.target.id !== 'ctx-trigger') {
+    if (selectedNodeEl) {
+      updateActiveNode(null);
+      selectedNodeEl = null;
+      selectedFilePath = null;
+      hideContextTrigger();
+      exitInlineRename();
+    }
+  }
+});
+/* 菜单动作绑定 */
+document.getElementById('ctx-move-up').addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (_ctxFile) { moveNodeUp(_ctxFile); hideContextMenu(); }
+});
+document.getElementById('ctx-move-down').addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (_ctxFile) { moveNodeDown(_ctxFile); hideContextMenu(); }
+});
+document.getElementById('ctx-delete').addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (_ctxFile) {
+    /* 模拟删除：选中该节点再删除 */
+    exitInlineRename();
+    var el = findNodeElByFile(_ctxFile);
+    if (el) {
+      var datum = d3.select(el).datum();
+      if (datum) handleNodeClick(datum, el);
+    }
+    hideContextMenu();
+    handleDelete();
+  }
+});
+
 /* 键盘快捷键 */
 document.addEventListener('keydown', function(e) {
   if (e.ctrlKey && e.key === 's' && !e.shiftKey) { e.preventDefault(); handleSaveFile(); }
   if (e.ctrlKey && e.key === 's' && e.shiftKey)  { e.preventDefault(); handleSaveAsFile(); }
   if (e.ctrlKey && e.key === 'o') { e.preventDefault(); handleOpenFile(); }
   if (e.ctrlKey && e.key === 'n') { e.preventDefault(); handleNew(); }
+  if (e.ctrlKey && e.key === 'f') { e.preventDefault(); toggleSearch(); }
+  /* 内联重命名模式：Enter 确认，Escape 取消 */
+  if (inlineRenameNodeEl) {
+    if (e.key === 'Enter') { e.preventDefault(); exitInlineRename(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); cancelInlineRename(); return; }
+  }
+
   if (e.key === 'Escape' && editorArea.style.display !== 'none') { cancelEdit(); }
 
   /* 节点编辑快捷键：选中节点时 Tab → 添加子级，Enter → 添加同级 */
-  if (selectedFilePath && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+  if (selectedFilePath && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT' && !inlineRenameNodeEl) {
     if (e.key === 'Tab')   { e.preventDefault(); handleAddChild(); }
     if (e.key === 'Enter') { e.preventDefault(); handleAddSibling(); }
   }
@@ -1241,9 +1937,23 @@ document.addEventListener('keydown', function(e) {
    ============================================================ */
 document.getElementById('mindmap-panel').addEventListener('click', function(event) {
   var nodeEl = event.target.closest('.markmap-node');
-  if (!nodeEl) return;
+  if (!nodeEl) {
+    /* 点击空白区域取消选中 */
+    updateActiveNode(null);
+    selectedNodeEl = null;
+    selectedFilePath = null;
+    hideContextTrigger();
+    exitInlineRename();
+    return;
+  }
+  /* 点击节点时清除搜索高亮 */
+  clearSearch();
   var datum = d3.select(nodeEl).datum();
   if (!datum) return;
+  if (nodeEl === selectedNodeEl) {
+    if (!inlineRenameNodeEl) enterInlineRename(nodeEl);
+    return;
+  }
   handleNodeClick(datum, nodeEl);
 });
 
@@ -1283,6 +1993,9 @@ var scheduleAutoSave = debounce(function() {
    ============================================================ */
 
 function init() {
+  /* 0. 初始化扩展功能 */
+  setLang(currentLang);
+  if (darkMode) document.body.classList.add('dark');
   renderMenubar();
 
   /* 1. 同步：从 localStorage 加载（或使用默认数据） */
