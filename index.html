@@ -171,16 +171,6 @@ html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe 
 /* --- 思维导图区域 --- */
 #mindmap-panel { flex:1; overflow:hidden; position:relative; }
 #mindmap-panel svg { width:100%; height:100%; display:block; }
-#ctx-trigger {
-  position:fixed; z-index:5000; display:none;
-  width:28px; height:28px; border-radius:50%;
-  background:var(--accent); color:#fff; border:2px solid #fff;
-  font-size:16px; line-height:28px; text-align:center;
-  cursor:pointer; box-shadow:0 2px 8px var(--shadow);
-  user-select:none;
-}
-#ctx-trigger:hover { transform:scale(1.15); }
-#ctx-trigger.show { display:block !important; }
 #context-menu {
   position:fixed; z-index:10000; min-width:160px;
   background:var(--popup-bg); border:1px solid var(--popup-border);
@@ -430,8 +420,6 @@ html, body { height:100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe 
   <div class="ctx-divider"></div>
   <div class="ctx-item danger" id="ctx-delete" data-i18n="deleteBtn">删除节点</div>
 </div>
-<!-- 节点操作触发按钮（选中节点时显示） -->
-<div id="ctx-trigger" title="节点操作">⋮</div>
 
 <script>
 /* ============================================================
@@ -780,21 +768,6 @@ function showContextMenu(e, file) {
 function hideContextMenu() {
   document.getElementById('context-menu').style.display = 'none';
   _ctxFile = null;
-}
-
-function showContextTrigger() {
-  var trigger = document.getElementById('ctx-trigger');
-  trigger.classList.add('show');
-  if (selectedNodeEl) {
-    var rect = selectedNodeEl.getBoundingClientRect();
-    trigger.style.left = (rect.right + 6) + 'px';
-    trigger.style.top = (rect.top - 4) + 'px';
-    trigger.style.right = 'auto';
-    trigger.style.bottom = 'auto';
-  }
-}
-function hideContextTrigger() {
-  document.getElementById('ctx-trigger').classList.remove('show');
 }
 
 function buildMoveToSubmenu(file) {
@@ -1318,7 +1291,6 @@ function handleNodeClick(nodeData, nodeEl) {
   updateActiveNode(nodeEl);
   selectedNodeEl = nodeEl;
   selectedFilePath = file || null;
-  showContextTrigger();
 
   if (!file || !file.trim()) {
     showSection(noDocArea);
@@ -1353,7 +1325,6 @@ function handleNew() {
   appData.contents[fid] = '# ' + t('newProject') + '\n\n' + t('editHere');
   selectedFilePath = null;
   selectedNodeEl = null;
-  hideContextTrigger();
   showSection(welcomeEl);
   nodeTitleEl.textContent = '文档查看';
   editToggleBtn.style.display = 'none';
@@ -1407,7 +1378,6 @@ function loadFromParsedData(data, fileName) {
   });
   selectedFilePath = null;
   selectedNodeEl = null;
-  hideContextTrigger();
   showSection(welcomeEl);
   nodeTitleEl.textContent = '文档查看';
   editToggleBtn.style.display = 'none';
@@ -1621,7 +1591,6 @@ function handleDelete() {
   parent.children.splice(idx, 1);
   selectedFilePath = null;
   selectedNodeEl = null;
-  hideContextTrigger();
   showSection(welcomeEl);
   nodeTitleEl.textContent = '文档查看';
   editToggleBtn.style.display = 'none';
@@ -1866,22 +1835,25 @@ document.getElementById('search-input').addEventListener('keydown', function(e) 
 document.getElementById('search-close').addEventListener('click', toggleSearch);
 
 /* ---- 右键菜单 ---- */
-/* 节点操作触发按钮 */
-document.getElementById('ctx-trigger').addEventListener('click', function(e) {
-  e.stopPropagation();
-  if (!selectedFilePath) return;
-  var rect = this.getBoundingClientRect();
-  showContextMenu({ clientX: rect.left, clientY: rect.top + rect.height }, selectedFilePath);
+/* 右键节点：屏蔽浏览器默认菜单，弹出自定义菜单 */
+document.getElementById('mindmap-panel').addEventListener('contextmenu', function(e) {
+  var nodeEl = e.target.closest('.markmap-node');
+  if (!nodeEl) return;
+  e.preventDefault();
+  var datum = d3.select(nodeEl).datum();
+  if (!datum) return;
+  var raw = datum.data || datum;
+  if (!raw.file) return;
+  showContextMenu(e, raw.file);
 });
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('#context-menu') && e.target.id !== 'ctx-trigger') hideContextMenu();
+  if (!e.target.closest('#context-menu')) hideContextMenu();
   /* 点击导图区域外取消选中节点 */
-  if (!e.target.closest('#mindmap-panel') && !e.target.closest('#context-menu') && e.target.id !== 'ctx-trigger') {
+  if (!e.target.closest('#mindmap-panel') && !e.target.closest('#context-menu')) {
     if (selectedNodeEl) {
       updateActiveNode(null);
       selectedNodeEl = null;
       selectedFilePath = null;
-      hideContextTrigger();
       exitInlineRename();
     }
   }
@@ -1942,7 +1914,6 @@ document.getElementById('mindmap-panel').addEventListener('click', function(even
     updateActiveNode(null);
     selectedNodeEl = null;
     selectedFilePath = null;
-    hideContextTrigger();
     exitInlineRename();
     return;
   }
