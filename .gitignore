@@ -5,4 +5,11 @@ data/
 MDPro.exe
 
 # build output
-release/
+release/MDPro-win32-x64/
+release/extract/
+
+# debug artifacts
+*.log
+test-extract/
+test-mini/
+sfx-mini-test/
